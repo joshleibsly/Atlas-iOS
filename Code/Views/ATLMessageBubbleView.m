@@ -111,6 +111,7 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
 
 - (void)prepareForReuse
 {
+    self.snapshotter = nil;
     self.bubbleImageView.image = nil;
     [self applyImageWidthConstraint:NO];
     [self setBubbleViewContentType:ATLBubbleViewContentTypeText];
@@ -148,22 +149,23 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
     }
 
     self.snapshotter = [self snapshotterForLocation:location];
+    __weak typeof(self) weakSelf = self;
     [self.snapshotter startWithCompletionHandler:^(MKMapSnapshot *snapshot, NSError *error) {
-        self.bubbleImageView.hidden = NO;
+        weakSelf.bubbleImageView.hidden = NO;
         if (error) {
-            self.bubbleImageView.image = [UIImage imageNamed:@"LayerUIKitResource.bundle/warning-black"];
-            self.bubbleImageView.contentMode = UIViewContentModeCenter;
+            weakSelf.bubbleImageView.image = [UIImage imageNamed:@"LayerUIKitResource.bundle/warning-black"];
+            weakSelf.bubbleImageView.contentMode = UIViewContentModeCenter;
             return;
         }
-        self.bubbleImageView.contentMode = UIViewContentModeScaleAspectFill;
-        self.bubbleImageView.image = ATLPinPhotoForSnapshot(snapshot, location);
-        self.locationShown = location;
-        [[[self class] sharedCache] setObject:self.bubbleImageView.image forKey:cachedImageIdentifier];
+        weakSelf.bubbleImageView.contentMode = UIViewContentModeScaleAspectFill;
+        weakSelf.bubbleImageView.image = ATLPinPhotoForSnapshot(snapshot, location);
+        weakSelf.locationShown = location;
+        [[[weakSelf class] sharedCache] setObject:self.bubbleImageView.image forKey:cachedImageIdentifier];
 
         // Animate into view.
-        self.bubbleImageView.alpha = 0.0;
+        weakSelf.bubbleImageView.alpha = 0.0;
         [UIView animateWithDuration:0.2 animations:^{
-            self.bubbleImageView.alpha = 1.0;
+            weakSelf.bubbleImageView.alpha = 1.0;
         }];
     }];
 }
@@ -207,7 +209,7 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
         default:
             break;
     }
-    [self.snapshotter cancel];
+    
     [self setNeedsUpdateConstraints];
 }
 
