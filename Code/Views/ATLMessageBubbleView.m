@@ -111,6 +111,7 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
 
 - (void)prepareForReuse
 {
+    [self.snapshotter cancel];
     self.snapshotter = nil;
     self.bubbleImageView.image = nil;
     [self applyImageWidthConstraint:NO];
