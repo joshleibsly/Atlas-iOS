@@ -182,6 +182,8 @@ NSInteger const kATLSharedCellTag = 1000;
     if (!previewImagePart) {
         // If no preview image part found, resort to the full-resolution image.
         previewImagePart = fullResImagePart;
+    } else if (previewImagePart.transferStatus != LYRContentTransferComplete) {
+        [previewImagePart downloadContent:nil];
     }
     
     __weak typeof(self) weakSelf = self;
@@ -190,8 +192,12 @@ NSInteger const kATLSharedCellTag = 1000;
     dispatch_async(self.imageProcessingConcurrentQueue, ^{
         if (previewImagePart.fileURL) {
             displayingImage = [UIImage imageWithContentsOfFile:previewImagePart.fileURL.path];
-        } else {
+        } else if (previewImagePart.data) {
             displayingImage = [UIImage imageWithData:previewImagePart.data];
+        } else if (fullResImagePart.fileURL) {
+            displayingImage = [UIImage imageWithContentsOfFile:fullResImagePart.fileURL.path];
+        } else {
+            displayingImage = [UIImage imageWithData:fullResImagePart.data];
         }
         
         CGSize size = CGSizeZero;
@@ -207,7 +213,7 @@ NSInteger const kATLSharedCellTag = 1000;
         dispatch_async(dispatch_get_main_queue(), ^{
             // Fall-back to programatically requesting for a content download of
             // single message part messages (Android compatibillity).
-            if ([[weakSelf.message valueForKeyPath:@"parts.MIMEType"] isEqual:@[ATLMIMETypeImageJPEG]]) {
+            if ([[weakSelf.message valueForKeyPath:@"parts.MIMEType"] containsObject:@[ATLMIMETypeImageJPEG]] || [[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImagePNG]) {
                 if (fullResImagePart && (fullResImagePart.transferStatus == LYRContentTransferReadyForDownload)) {
                     NSError *error;
                     LYRProgress *progress = [fullResImagePart downloadContent:&error];

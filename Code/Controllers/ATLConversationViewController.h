@@ -254,6 +254,8 @@ typedef NS_ENUM(NSUInteger, ATLAvatarItemDisplayFrequency) {
  */
 - (void)sendLocationMessage;
 
+- (void)sendMessageWithLocation:(CLLocation *)location;
+
 /**
  @abstract Sends the specified message in the current conversation and informs the delegate of success or failure.
  @discussion This method can be used to send custom `LYRMessage` objects that are initialized outside of Atlas's default implementation.

@@ -32,7 +32,7 @@
 #import "ATLLocationManager.h"
 @import AVFoundation;
 
-@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, UIActionSheetDelegate, CLLocationManagerDelegate>
+@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, CLLocationManagerDelegate>
 
 @property (nonatomic) ATLConversationDataSource *conversationDataSource;
 @property (nonatomic, readwrite) LYRQueryController *queryController;
@@ -61,7 +61,6 @@ static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
 static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
 static NSString *const ATLDefaultPushAlertVideo = @"sent you a video.";
 static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
-static NSInteger const ATLPhotoActionSheet = 1000;
 
 + (NSCache *)sharedMediaAttachmentCache
 {
@@ -425,9 +424,12 @@ static NSInteger const ATLPhotoActionSheet = 1000;
     } else {
         [cell updateWithSender:nil];
     }
+    
+#if !defined(AF_APP_EXTENSIONS)
     if (message.isUnread && [[UIApplication sharedApplication] applicationState] == UIApplicationStateActive && self.marksMessagesAsRead) {
         [message markAsRead:nil];
     }
+#
 }
 
 - (void)configureFooter:(ATLConversationCollectionViewFooter *)footer atIndexPath:(NSIndexPath *)indexPath
@@ -558,13 +560,20 @@ static NSInteger const ATLPhotoActionSheet = 1000;
         [messageInputToolbar.textInputView resignFirstResponder];
     }
     
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil
-                                                             delegate:self
-                                                    cancelButtonTitle:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.cancel.key", @"Cancel", nil)
-                                               destructiveButtonTitle:nil
-                                                    otherButtonTitles:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.takephoto.key", @"Take Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.lastphoto.key", @"Last Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.library.key", @"Photo/Video Library", nil), nil];
-    [actionSheet showInView:self.view];
-    actionSheet.tag = ATLPhotoActionSheet;
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Take Photo", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Last Photo Taken", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self captureLastPhotoTaken];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Photo Library", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }]];
+    [self presentViewController:alertController animated:YES completion:nil];
 }
 
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapRightAccessoryButton:(UIButton *)rightAccessoryButton
@@ -679,30 +688,6 @@ static NSInteger const ATLPhotoActionSheet = 1000;
     [self sendMessage:message];
 }
 
-#pragma mark - UIActionSheetDelegate
-
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
-{
-    if (actionSheet.tag == ATLPhotoActionSheet) {
-        switch (buttonIndex) {
-            case 0:
-                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
-                break;
-                
-            case 1:
-                [self captureLastPhotoTaken];
-                break;
-                
-            case 2:
-                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
-                break;
-                
-            default:
-                break;
-        }
-    }
-}
-
 #pragma mark - Image Picking
 
 - (void)displayImagePickerWithSourceType:(UIImagePickerControllerSourceType)sourceType;
@@ -727,6 +712,7 @@ static NSInteger const ATLPhotoActionSheet = 1000;
         } else {
             ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
             [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
+            [self.messageInputToolbar.textInputView becomeFirstResponder];
         }
     });
 }
@@ -754,8 +740,10 @@ static NSInteger const ATLPhotoActionSheet = 1000;
     if (mediaAttachment) {
         [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
     }
-    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
-    [self.view becomeFirstResponder];
+    [self.navigationController dismissViewControllerAnimated:YES completion:^{
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }];
+    [self.messageInputToolbar.textInputView becomeFirstResponder];
     
     // Workaround for collection view not displayed on iOS 7.1.
     [self.collectionView setNeedsLayout];
@@ -763,7 +751,9 @@ static NSInteger const ATLPhotoActionSheet = 1000;
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
 {
-    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
+    [self.navigationController dismissViewControllerAnimated:YES completion:^{
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }];
     [self.view becomeFirstResponder];
     
     // Workaround for collection view not displayed on iOS 7.1.
