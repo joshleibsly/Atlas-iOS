@@ -162,8 +162,12 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     
     if (previewImagePart.fileURL) {
         displayingImage = [UIImage imageWithContentsOfFile:previewImagePart.fileURL.path];
-    } else {
+    } else if (previewImagePart.data) {
         displayingImage = [UIImage imageWithData:previewImagePart.data];
+    } else if (fullResImagePart.fileURL) {
+        displayingImage = [UIImage imageWithContentsOfFile:fullResImagePart.fileURL.path];
+    } else {
+        displayingImage = [UIImage imageWithData:fullResImagePart.data];
     }
     
     CGSize size = CGSizeZero;
@@ -179,7 +183,7 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     
     // Fall-back to programatically requesting for a content download of
     // single message part messages (Android compatibillity).
-    if ([[self.message valueForKeyPath:@"parts.MIMEType"] isEqual:@[ATLMIMETypeImageJPEG]]) {
+    if ([[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImageJPEG]) {
         if (fullResImagePart && (fullResImagePart.transferStatus == LYRContentTransferReadyForDownload)) {
             NSError *error;
             LYRProgress *progress = [fullResImagePart downloadContent:&error];
