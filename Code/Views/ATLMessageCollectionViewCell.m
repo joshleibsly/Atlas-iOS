@@ -104,7 +104,7 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     [self.bubbleView prepareForReuse];
 }
 
-- (void)presentMessage:(LYRMessage *)message;
+- (void)presentMessage:(LYRMessage *)message
 {
     self.message = message;
     LYRMessagePart *messagePart = message.parts.firstObject;
@@ -158,11 +158,13 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     if (!previewImagePart) {
         // If no preview image part found, resort to the full-resolution image.
         previewImagePart = fullResImagePart;
+    } else if (previewImagePart.transferStatus != LYRContentTransferComplete) {
+        [previewImagePart downloadContent:nil];
     }
     
     if (previewImagePart.fileURL) {
         displayingImage = [UIImage imageWithContentsOfFile:previewImagePart.fileURL.path];
-    } else {
+    } else if (previewImagePart.data) {
         displayingImage = [UIImage imageWithData:previewImagePart.data];
     }
     
@@ -179,7 +181,8 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     
     // Fall-back to programatically requesting for a content download of
     // single message part messages (Android compatibillity).
-    if ([[self.message valueForKeyPath:@"parts.MIMEType"] isEqual:@[ATLMIMETypeImageJPEG]]) {
+    if ([[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImageJPEG] ||
+        [[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImagePNG]) {
         if (fullResImagePart && (fullResImagePart.transferStatus == LYRContentTransferReadyForDownload)) {
             NSError *error;
             LYRProgress *progress = [fullResImagePart downloadContent:&error];
