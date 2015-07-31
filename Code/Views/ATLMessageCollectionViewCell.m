@@ -158,8 +158,8 @@ CGFloat const ATLMessageCellHorizontalMargin = 16.0f;
     if (!previewImagePart) {
         // If no preview image part found, resort to the full-resolution image.
         previewImagePart = fullResImagePart;
-    } else if (previewImagePart.data) {
-        displayingImage = [UIImage imageWithData:previewImagePart.data];
+    } else if (previewImagePart.transferStatus != LYRContentTransferComplete) {
+        [previewImagePart downloadContent:nil];
     }
     
     if (previewImagePart.fileURL) {
