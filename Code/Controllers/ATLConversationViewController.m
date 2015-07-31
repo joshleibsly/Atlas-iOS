@@ -382,8 +382,8 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if (message.isUnread && [[UIApplication sharedApplication] applicationState] == UIApplicationStateActive) {
         [message markAsRead:nil];
     }
-}
 #endif
+}
 
 - (void)configureFooter:(ATLConversationCollectionViewFooter *)footer atIndexPath:(NSIndexPath *)indexPath
 {
