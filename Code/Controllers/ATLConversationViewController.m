@@ -383,6 +383,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
         [message markAsRead:nil];
     }
 }
+#endif
 
 - (void)configureFooter:(ATLConversationCollectionViewFooter *)footer atIndexPath:(NSIndexPath *)indexPath
 {
