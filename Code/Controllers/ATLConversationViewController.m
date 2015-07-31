@@ -378,7 +378,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
         [cell updateWithSender:nil];
     }
     
-#warning TODO - Macro For Extension Compiler Error
+#if !defined(AF_APP_EXTENSIONS)
     if (message.isUnread && [[UIApplication sharedApplication] applicationState] == UIApplicationStateActive) {
         [message markAsRead:nil];
     }
