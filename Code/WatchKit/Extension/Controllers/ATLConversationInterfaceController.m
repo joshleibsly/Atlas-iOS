@@ -63,7 +63,7 @@
     NSUInteger messageCount = [self.conversationDataSource.queryController numberOfObjectsInSection:0];
     [self calculateRowsForMessageCount:messageCount];
     NSUInteger rowCount = self.messageTable.numberOfRows;
-    for (NSUInteger i = 0; i < rowCount; i++) {
+    for (NSUInteger i = 0; i < rowCount - 1; i++) {
         [self configureRowAtIndex:i];
     }
 }
@@ -79,6 +79,8 @@
             [rows addObject:@"incomingRow"];
         }
     }
+    
+    [rows addObject:@"ReplyController"];
     [self.messageTable setRowTypes:rows];
 }
 
