@@ -47,7 +47,7 @@
 {
     LYRQuery *query = ATLMessageListDefaultQueryForConversation(self.conversation);
     ATLConversationDataSource *conversationDatasource = [ATLConversationDataSource dataSourceWithLayerClient:self.layerClient query:query];
-    conversationDatasource.paginationIncrement = 10;
+    conversationDatasource.paginationIncrement = 50;
     conversationDatasource .queryController.delegate = self;
     conversationDatasource.numberOfSectionsBeforeFirstMessage = 0;
     
