@@ -60,6 +60,7 @@
 
 - (void)configureConversationController
 {
+    self.conversationDataSource = [self dataSourceForConversation];
     NSUInteger messageCount = [self.conversationDataSource.queryController numberOfObjectsInSection:0];
     [self calculateRowsForMessageCount:messageCount];
     NSUInteger rowCount = self.messageTable.numberOfRows;
