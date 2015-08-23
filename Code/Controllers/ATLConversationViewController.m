@@ -438,6 +438,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
     }]];
     
     [alertController addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self.messageInputToolbar.textInputView resignFirstResponder];
     [self presentViewController:alertController animated:YES completion:nil];
 }
 
@@ -559,6 +560,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
         } else {
             ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
             [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+            [self.messageInputToolbar.textInputView becomeFirstResponder];
         }
     });
 }
@@ -583,7 +585,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
         [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
     }
     [self.navigationController dismissViewControllerAnimated:YES completion:nil];
-    [self.view becomeFirstResponder];
+    [self.messageInputToolbar.textInputView becomeFirstResponder];
 
     // Workaround for collection view not displayed on iOS 7.1.
     [self.collectionView setNeedsLayout];
