@@ -27,7 +27,12 @@
     self.message = message;
     
     LYRMessagePart *messagePart = message.parts[0];
-    if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain]) {
+    if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/paymentRequest"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/creditCardConfirmation"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/uberRequest"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestDetail"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestComplete"]) {
         [self configureBubbleViewForTextContent];
     } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
         [self configureBubbleViewForImageContent];
@@ -52,7 +57,16 @@
 - (void)configureBubbleViewForTextContent
 {
     LYRMessagePart *messagePart = self.message.parts[0];
-    [self.label setText:[[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding]];
+    if ([messagePart.MIMEType isEqualToString:@"gobutler/paymentRequest"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/creditCardConfirmation"]) {
+        [self.label setText:NSLocalizedString(@"Please see the iPhone app for your payment details.", nil)];
+    } else if ([messagePart.MIMEType isEqualToString:@"gobutler/uberRequest"] ||
+               [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestDetail"] ||
+               [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestComplete"]) {
+        [self.label setText:NSLocalizedString(@"Please see the iPhone app for your Uber request details.", nil)];
+    } else {
+        [self.label setText:[[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding]];
+    }
     
     [self.mapGroup setHidden:YES];
     [self.imageGroup setHidden:YES];
@@ -82,7 +96,7 @@
             case LYRContentTransferDownloading:
                 [self downloadMessagePart:previewPart];
                 break;
-
+                
             default:
                 break;
         }
