@@ -250,11 +250,11 @@ static NSInteger const ATLMoreMessagesSection = 0;
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
     if (section == ATLMoreMessagesSection) return 0;
-
+    
     // Each message is represented by one cell no matter how many parts it has.
     return 1;
 }
- 
+
 /**
  Atlas - The `ATLConversationViewController` component uses `LYRMessage` objects to represent sections.
  */
@@ -437,7 +437,11 @@ static NSInteger const ATLMoreMessagesSection = 0;
         [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
     }]];
     
-    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }]];
+    
+    [self.messageInputToolbar.textInputView resignFirstResponder];
     [self presentViewController:alertController animated:YES completion:nil];
 }
 
@@ -502,7 +506,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
     }
 }
 
-#pragma mark - Location Message 
+#pragma mark - Location Message
 
 - (void)sendLocationMessage
 {
@@ -559,6 +563,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
         } else {
             ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
             [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+            [self.messageInputToolbar.textInputView becomeFirstResponder];
         }
     });
 }
@@ -582,18 +587,20 @@ static NSInteger const ATLMoreMessagesSection = 0;
         }
         [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
     }
-    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
-    [self.view becomeFirstResponder];
-
+    [self.navigationController dismissViewControllerAnimated:YES completion:^{
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }];
+    
     // Workaround for collection view not displayed on iOS 7.1.
     [self.collectionView setNeedsLayout];
 }
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker
 {
-    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
-    [self.view becomeFirstResponder];
-
+    [self.navigationController dismissViewControllerAnimated:YES completion:^{
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }];
+    
     // Workaround for collection view not displayed on iOS 7.1.
     [self.collectionView setNeedsLayout];
 }
@@ -723,13 +730,13 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if (CGRectEqualToRect(self.collectionView.frame, CGRectZero)) return;
     if (self.collectionView.isDragging) return;
     if (self.collectionView.isDecelerating) return;
-
+    
     CGFloat topOffset = -self.collectionView.contentInset.top;
     CGFloat distanceFromTop = self.collectionView.contentOffset.y - topOffset;
     CGFloat minimumDistanceFromTopToTriggerLoadingMore = 200;
     BOOL nearTop = distanceFromTop <= minimumDistanceFromTopToTriggerLoadingMore;
     if (!nearTop) return;
-
+    
     [self.conversationDataSource expandPaginationWindow];
 }
 
@@ -778,26 +785,26 @@ static NSInteger const ATLMoreMessagesSection = 0;
 - (void)configureAddressBarForChangedParticipants
 {
     if (!self.addressBarController) return;
-
+    
     NSOrderedSet *existingParticipants = self.addressBarController.selectedParticipants;
     NSOrderedSet *existingParticipantIdentifiers = [existingParticipants valueForKey:@"participantIdentifier"];
-   
+    
     if (!existingParticipantIdentifiers && !self.conversation.participants) return;
     if ([existingParticipantIdentifiers.set isEqual:self.conversation.participants]) return;
-
+    
     NSMutableOrderedSet *removedIdentifiers = [NSMutableOrderedSet orderedSetWithOrderedSet:existingParticipantIdentifiers];
     [removedIdentifiers minusSet:self.conversation.participants];
-
+    
     NSMutableOrderedSet *addedIdentifiers = [NSMutableOrderedSet orderedSetWithSet:self.conversation.participants];
     [addedIdentifiers minusOrderedSet:existingParticipantIdentifiers];
     
     NSString *authenticatedUserID = self.layerClient.authenticatedUserID;
     if (authenticatedUserID) [addedIdentifiers removeObject:authenticatedUserID];
-
+    
     NSMutableOrderedSet *participantIdentifiers = [NSMutableOrderedSet orderedSetWithOrderedSet:existingParticipantIdentifiers];
     [participantIdentifiers minusOrderedSet:removedIdentifiers];
     [participantIdentifiers unionOrderedSet:addedIdentifiers];
-
+    
     NSOrderedSet *participants = [self participantsForIdentifiers:participantIdentifiers];
     self.addressBarController.selectedParticipants = participants;
 }
@@ -837,7 +844,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
             NSLog(@"LayerKit failed to execute query with error: %@", error);
             return;
         }
-
+        
         // Query for the all of the message identifiers in the above set where user == participantIdentifier
         LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
         LYRPredicate *senderPredicate = [LYRPredicate predicateWithProperty:@"sender.userID" predicateOperator:LYRPredicateOperatorIsEqualTo value:participantIdentifier];
@@ -849,7 +856,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
             NSLog(@"LayerKit failed to execute query with error: %@", error);
             return;
         }
-
+        
         // Convert query controller index paths to collection view index paths
         NSDictionary *objectIdentifiersToIndexPaths = [self.conversationDataSource.queryController indexPathsForObjectsWithIdentifiers:messageIdentifiersToReload.set];
         NSArray *queryControllerIndexPaths = [objectIdentifiersToIndexPaths allValues];
@@ -1090,7 +1097,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if ([cell conformsToProtocol:@protocol(ATLMessagePresenting)]) {
         [self configureCell:(UICollectionViewCell<ATLMessagePresenting> *)cell forMessage:message indexPath:collectionViewIndexPath];
     }
-
+    
     // Find the header...
     for (ATLConversationCollectionViewHeader *header in self.sectionHeaders) {
         NSIndexPath *queryControllerIndexPath = [self.conversationDataSource.queryController indexPathForObject:header.message];
@@ -1100,7 +1107,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
             break;
         }
     }
-
+    
     // ...and the footer
     for (ATLConversationCollectionViewFooter *footer in self.sectionFooters) {
         NSIndexPath *queryControllerIndexPath = [self.conversationDataSource.queryController indexPathForObject:footer.message];
@@ -1150,7 +1157,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
 #pragma mark - NSNotification Center Registration
 
 - (void)atl_registerForNotifications
-{    
+{
     // Layer Notifications
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didReceiveTypingIndicator:) name:LYRConversationDidReceiveTypingIndicatorNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(layerClientObjectsDidChange:) name:LYRClientObjectsDidChangeNotification object:nil];
