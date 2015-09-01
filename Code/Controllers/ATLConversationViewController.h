@@ -235,6 +235,15 @@
  */
 - (void)sendLocationMessage;
 
+/**
+ *  Method to configure a cell for a message, be sure to call super first when overriding.
+ *
+ *  @param cell      The cell being configured.
+ *  @param message   The message to configure the cell with.
+ *  @param indexPath The index path of the cell.
+ */
+- (void)configureCell:(UICollectionViewCell<ATLMessagePresenting> *)cell forMessage:(LYRMessage *)message indexPath:(NSIndexPath *)indexPath;
+
 ///---------------------------
 /// @name Configuring Behavior
 ///---------------------------
