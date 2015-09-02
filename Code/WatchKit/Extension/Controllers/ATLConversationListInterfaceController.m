@@ -57,7 +57,7 @@ static NSDateFormatter *ATLDateFormatter()
     if ([self.dataSource respondsToSelector:@selector(conversationListInterfaceController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationListInterfaceController:self willLoadWithQuery:query];
     }
-    LYRQueryController *queryController = [self.layerClient queryControllerWithQuery:query];
+    LYRQueryController *queryController = [self.layerClient queryControllerWithQuery:query error:nil];
     queryController.delegate = self;
     return queryController;
 }
