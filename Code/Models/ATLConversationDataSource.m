@@ -40,7 +40,7 @@
     if (self) {
         _layerClient = layerClient;
         
-        _queryController = [layerClient queryControllerWithQuery:query];
+        _queryController = [layerClient queryControllerWithQuery:query error:nil];
         _queryController.updatableProperties = [NSSet setWithObjects:@"parts.transferStatus", @"recipientStatusByUserID", @"sentAt", nil];
         
         self.paginationIncrement = 30;
