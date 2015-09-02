@@ -220,7 +220,7 @@ NSString *const ATLConversationTableViewAccessibilityIdentifier = @"Conversation
         }
     }
     
-    self.queryController = [self.layerClient queryControllerWithQuery:query];
+    self.queryController = [self.layerClient queryControllerWithQuery:query error:nil];
     self.queryController.delegate = self;
     NSError *error;
     BOOL success = [self.queryController execute:&error];
@@ -469,7 +469,7 @@ NSString *const ATLConversationTableViewAccessibilityIdentifier = @"Conversation
             LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
             query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:participantIdentifiers];
             query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
-            self.searchQueryController = [self.layerClient queryControllerWithQuery:query];
+            self.searchQueryController = [self.layerClient queryControllerWithQuery:query error:nil];
             
             NSError *error;
             [self.searchQueryController execute:&error];
