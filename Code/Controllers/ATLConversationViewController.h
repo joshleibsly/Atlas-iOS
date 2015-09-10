@@ -235,6 +235,8 @@
  */
 - (void)sendLocationMessage;
 
+- (void)sendMessageWithLocation:(CLLocation *)location;
+
 /**
  *  Method to configure a cell for a message, be sure to call super first when overriding.
  *
