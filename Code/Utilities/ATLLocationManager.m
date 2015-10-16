@@ -41,15 +41,4 @@
     return YES;
 }
 
-- (void)displayLocationEnablementAlert
-{
-    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:ATLLocalizedString(@"atl.locationmanager.alert.title.key", @"Location Access Required", nil)
-                                                        message:ATLLocalizedString(@"atl.locationmanager.alert.message.key", @"To share your location, enable location services for this app in the Privacy section of the Settings app.", nil)
-                                                       delegate:nil
-                                              cancelButtonTitle:ATLLocalizedString(@"atl.locationmanager.alert.cancel.key", @"OK", nil)
-                                              otherButtonTitles:nil];
-     [alertView show];
-    
-}
-
 @end
