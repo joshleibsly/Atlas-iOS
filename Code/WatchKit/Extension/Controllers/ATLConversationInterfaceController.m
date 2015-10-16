@@ -45,7 +45,10 @@
 
 - (ATLConversationDataSource *)dataSourceForConversation
 {
-    LYRQuery *query = ATLMessageListDefaultQueryForConversation(self.conversation);
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:self.conversation];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
+    
     ATLConversationDataSource *conversationDatasource = [ATLConversationDataSource dataSourceWithLayerClient:self.layerClient query:query];
     conversationDatasource.paginationIncrement = 50;
     conversationDatasource .queryController.delegate = self;
@@ -139,9 +142,9 @@
             pushText = attachment.textRepresentation;
         } else {
             NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
-            pushText = ATLPushTextForMessage(senderName, attachment.mediaMIMEType);
+            pushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertText];
         }
-        LYRMessage *message = ATLMessageForMessageParameters(self.layerClient, messageParts, pushText);
+        LYRMessage *message = ATLMessageForParts(self.layerClient, messageParts, pushText, ATLPushNotificationSoundName);
         if (message) {
             [messages addObject:message];
         }
