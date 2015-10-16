@@ -366,7 +366,6 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
 
     UIAlertController *controller = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     [controller addAction:[UIAlertAction actionWithTitle:@"Global" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        [actionSheet showInView:self.view];
         [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeAllParticipants];
     }]];
     
