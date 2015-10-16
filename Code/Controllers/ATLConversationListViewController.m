@@ -364,8 +364,19 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
 {
     self.conversationToDelete = [self.queryController objectAtIndexPath:indexPath];
 
+    UIAlertController *controller = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:ATLConversationListViewControllerDeletionModeGlobal otherButtonTitles:ATLConversationListViewControllerDeletionModeLocal, nil];
-    [actionSheet showInView:self.view];
+    [controller addAction:[UIAlertAction actionWithTitle:@"Global" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [actionSheet showInView:self.view];
+        [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeAllParticipants];
+    }]];
+    
+    [controller addAction:[UIAlertAction actionWithTitle:@"Local" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeLocal];
+    }]];
+    
+    [controller addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:controller animated:YES completion:nil];
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
@@ -374,20 +385,6 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
         LYRConversation *conversation = [self.queryController objectAtIndexPath:indexPath];
         [self.delegate conversationListViewController:self didSelectConversation:conversation];
     }
-}
-
-#pragma mark - UIActionSheetDelegate
-
-- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
-{
-    if (buttonIndex == actionSheet.destructiveButtonIndex) {
-        [self deleteConversation:self.conversationToDelete withDeletionMode:LYRDeletionModeAllParticipants];
-    } else if (buttonIndex == actionSheet.firstOtherButtonIndex) {
-        [self deleteConversation:self.conversationToDelete withDeletionMode:LYRDeletionModeLocal];
-    } else if (buttonIndex == actionSheet.cancelButtonIndex) {
-        [self setEditing:NO animated:YES];
-    }
-    self.conversationToDelete = nil;
 }
 
 #pragma mark - Data Source
