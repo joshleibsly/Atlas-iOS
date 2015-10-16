@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
                                     'Blake Watters'   => 'blake@layer.com',
                                     'Klemen Verdnik'  => 'klemen@layer.com',
                                     'Ben Blakely'     => 'ben@layer.com' }
-  s.source                      = { git: "https://github.com/layerhq/Atlas-iOS.git", tag: "v#{s.version}" }
+  s.source                      = { git: “https://github.com/joshleibsly/Atlas-iOS.git", tag: "v#{s.version}" }
   s.platform                    = :ios, '8.0'
   
   s.requires_arc                = true
