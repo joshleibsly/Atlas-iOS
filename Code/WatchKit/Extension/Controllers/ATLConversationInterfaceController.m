@@ -17,6 +17,9 @@
 #import "ATLOutgoingRow.h"
 #import "ATLMessagingUtilities.h"
 
+static NSString *const ATLPushNotificationSoundName = @"layerbell.caf";
+static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
+
 @interface ATLConversationInterfaceController () <LYRProgressDelegate, LYRQueryControllerDelegate>
 
 @property (nonatomic) ATLConversationDataSource *conversationDataSource;
