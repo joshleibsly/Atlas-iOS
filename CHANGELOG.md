@@ -1,5 +1,64 @@
 # Atlas Changelog
 
+## 1.0.13
+
+### Public API Changes
+
+* Exposed `ATLConversationViewController` method `sendMessage:` to allow custom `LYRMessage` objects to use Atlas delegate handling.
+* Introduced `verticalMargin` property on `ATLMessageInputToolbar` to specify top and bottom margins for the text input view.
+
+### Enhancements
+
+* Improved `UIMenuController` behavior.
+
+### Bug Fixes
+
+* Updated the Atlas podspec that caused build errors for some users.
+* Fixed an iOS9 bug with duplicate keyboards being dismissed.
+
+## 1.0.12
+
+### Enhancements
+
+* Improved `UIMenuController` behavior while scrolling.
+* Cached message cell height to improve scrolling performance.
+* Added native video support.
+* Atlas uses `LayerKit v0.17.0` which provides support for dynamic frameworks.
+
+### Bug Fixes
+
+* Fixed iOS9 issue with the `ATLMessageInputToolbar` having a black background when presented on screen.
+* Fixed iOS9 breaking layout constraints.
+
+## 1.0.11
+
+### Public API Changes
+
+* Implemented `conversationViewController:configureCell:forMessage:` to allow `ATLConversationViewController` subclasses to add extra cell configuration.
+* Added `shouldDisplayAvatarItemForAuthenticatedUser` to `ATLConversationViewController` to display avatar items for the authenticated user.
+* Added `ATLAvatarItemDisplayFrequency` property to `ATLConversationViewController` to allow customization of avatar frequency.
+* Exposed `LYRQueryController` on `ATLConversationViewController`.
+* Added `NSTextCheckingType` on `ATLMessageBubbleView`.
+* Added `menuControllerActions` on `ATLMessageBubbleView` to customize UIMenuController actions.
+
+### Enhancements
+
+* `ATLConversationViewController` caches unsent media attachments in the `ATLMessageInputToolbar` upon deallocation, and re-inserts them on creation.
+* Added Localization support.
+* Asynchronous image and GIF loading in `ATLMessageCollectionViewCell`.
+
+### Bug Fixes
+
+* Fixed bug that caused avatar images to flicker when loading photos from remote URLs.
+* Fixed bug that caused UIMenuController to stay on screen during pan gesture.
+* Fixed bug that caused images to stretch if smaller than the minimum cell size.
+
+## 1.0.10
+
+### Bug Fixes
+
+* Fixed bug introduced in 1.0.9 relating to media attachment text color for attributed string.
+
 ## 1.0.9
 
 ### Public API Changes

@@ -21,36 +21,28 @@
 #import "ATLMessagingUtilities.h"
 #import "ATLErrors.h"
 #import <AssetsLibrary/AssetsLibrary.h>
-
-NSString *const ATLConversationCellReuseIdentifier = @"ATLConversationCellReuseIdentifier";
-NSString *const ATLImageMIMETypePlaceholderText = @"Attachment: Image";
-NSString *const ATLLocationMIMETypePlaceholderText = @"Attachment: Location";
-NSString *const ATLGIFMIMETypePlaceholderText = @"Attachment: GIF";
+#import "ATLMessageCollectionViewCell.h"
 
 NSString *const ATLMIMETypeTextPlain = @"text/plain";
 NSString *const ATLMIMETypeTextHTML = @"text/HTML";
 NSString *const ATLMIMETypeImagePNG = @"image/png";
 NSString *const ATLMIMETypeImageGIF = @"image/gif";
+NSString *const ATLMIMETypeVideoQuickTime = @"video/quicktime";
 NSString *const ATLMIMETypeImageSize = @"application/json+imageSize";
 NSString *const ATLMIMETypeImageJPEG = @"image/jpeg";
 NSString *const ATLMIMETypeImageJPEGPreview = @"image/jpeg+preview";
 NSString *const ATLMIMETypeImageGIFPreview = @"image/gif+preview";
 NSString *const ATLMIMETypeLocation = @"location/coordinate";
 NSString *const ATLMIMETypeDate = @"text/date";
-
+NSString *const ATLMIMETypeVideoMP4 = @"video/mp4";
 NSUInteger const ATLDefaultThumbnailSize = 512;
 NSUInteger const ATLDefaultGIFThumbnailSize = 64;
 
+NSString *const ATLPasteboardImageKey = @"image";
 NSString *const ATLImagePreviewWidthKey = @"width";
 NSString *const ATLImagePreviewHeightKey = @"height";
 NSString *const ATLLocationLatitudeKey = @"lat";
 NSString *const ATLLocationLongitudeKey = @"lon";
-
-static NSString *const ATLDefaultPushAlertGIF = @"sent you a GIF.";
-static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
-static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
-static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
-static NSString *const ATLPushNotificationSoundName = @"layerbell.caf";
 
 #pragma mark - Max Cell Dimensions
 
@@ -68,6 +60,7 @@ CGFloat ATLMaxCellHeight()
 
 CGSize ATLSizeProportionallyConstrainedToSize(CGSize nativeSize, CGSize maxSize)
 {
+    if (nativeSize.width < maxSize.width && nativeSize.height < maxSize.height) return nativeSize;
     CGSize itemSize;
     CGFloat widthScale = maxSize.width / nativeSize.width;
     CGFloat heightScale = maxSize.height / nativeSize.height;
@@ -139,71 +132,9 @@ CGRect ATLImageRectConstrainedToSize(CGSize imageSize, CGSize maxSize)
     return thumbRect;
 }
 
-#pragma mark - Query Utitlites
-
-LYRQuery *ATLConversationListDefaultQueryForAuthenticatedUserID(NSString *userID)
+CGFloat ATLDegreeToRadians(CGFloat degrees)
 {
-    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
-    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:userID];
-    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
-    return query;
-}
-
-LYRQuery *ATLMessageListDefaultQueryForConversation(LYRConversation *conversation)
-{
-    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
-    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:conversation];
-    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
-    return query;
-}
-
-#pragma mark - Message Utilities
-
-NSString *ATLLastMessageTextForMessage(LYRMessage *lastMessage)
-{
-    NSString *lastMessageText;
-    LYRMessagePart *messagePart = lastMessage.parts[0];
-    if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain]) {
-        lastMessageText = [[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding];
-    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
-        lastMessageText = ATLImageMIMETypePlaceholderText;
-    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImagePNG]) {
-        lastMessageText = ATLImageMIMETypePlaceholderText;
-    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
-        lastMessageText = ATLGIFMIMETypePlaceholderText;
-    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeLocation]) {
-        lastMessageText = ATLLocationMIMETypePlaceholderText;
-    } else {
-        lastMessageText = ATLImageMIMETypePlaceholderText;
-    }
-    return lastMessageText;
-}
-
-NSString *ATLPushTextForMessage(NSString *senderName, NSString *MIMEType)
-{
-    NSString *completePushText;
-    if ([MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
-        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertGIF];
-    } else if ([MIMEType isEqualToString:ATLMIMETypeImagePNG] || [MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
-        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertImage];
-    } else if ([MIMEType isEqualToString:ATLMIMETypeLocation]) {
-        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertLocation];
-    } else {
-        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertText];
-    }
-    return completePushText;
-}
-
-LYRMessage *ATLMessageForMessageParameters(LYRClient *client, NSArray *messageParts, NSString *pushText)
-{
-    NSDictionary *pushOptions = @{LYRMessageOptionsPushNotificationAlertKey : pushText,
-                                  LYRMessageOptionsPushNotificationSoundNameKey : ATLPushNotificationSoundName};
-    NSError *error;
-    LYRMessage *message = [client newMessageWithParts:messageParts options:pushOptions error:&error];
-    if (error) {
-        return nil;
-    }
-    return message;
+    return ((M_PI * degrees)/ 180);
 }
 
 #pragma mark - Private Message Part Helpers
@@ -218,6 +149,22 @@ CGSize  ATLSizeFromOriginalSizeWithConstraint(CGSize originalSize, CGFloat const
         return CGSizeMake(constraint, originalSize.height * widthRatio);
     }
     return originalSize;
+}
+
+#pragma mark - Message Utilities
+
+LYRMessage *ATLMessageForParts(LYRClient *layerClient, NSArray *messageParts, NSString *pushText, NSString *pushSound)
+{
+    LYRPushNotificationConfiguration *defaultConfiguration = [LYRPushNotificationConfiguration new];
+    defaultConfiguration.alert = pushText;
+    defaultConfiguration.sound = pushSound;
+    NSDictionary *options = @{ LYRMessageOptionsPushNotificationConfigurationKey: defaultConfiguration };
+    NSError *error;
+    LYRMessage *message = [layerClient newMessageWithParts:messageParts options:options error:&error];
+    if (error) {
+        return nil;
+    }
+    return message;
 }
 
 #pragma mark - Message Parts Utilities
@@ -236,7 +183,7 @@ NSArray *ATLMessagePartsWithMediaAttachment(ATLMediaAttachment *mediaAttachment)
     if (mediaAttachment.thumbnailInputStream) {
         [messageParts addObject:[LYRMessagePart messagePartWithMIMEType:mediaAttachment.thumbnailMIMEType stream:mediaAttachment.thumbnailInputStream]];
     }
-
+    
     // If there's any additional metadata, add it to the message parts on the third index.
     if (mediaAttachment.metadataInputStream) {
         [messageParts addObject:[LYRMessagePart messagePartWithMIMEType:mediaAttachment.metadataMIMEType stream:mediaAttachment.metadataInputStream]];
@@ -263,10 +210,10 @@ void ATLAssetURLOfLastPhotoTaken(void(^completionHandler)(NSURL *assetURL, NSErr
     [library enumerateGroupsWithTypes:ALAssetsGroupSavedPhotos usingBlock:^(ALAssetsGroup *group, BOOL *stop) {
         // When done, the group enumeration block is called another time with group set to nil.
         if (!group) return;
-
+        
         // Within the group enumeration block, filter to enumerate just photos.
-        [group setAssetsFilter:[ALAssetsFilter allPhotos]];
-
+        [group setAssetsFilter:[ALAssetsFilter allAssets]];
+        
         if ([group numberOfAssets] == 0) {
             completionHandler(nil, [NSError errorWithDomain:ATLErrorDomain code:ATLErrorNoPhotos userInfo:@{NSLocalizedDescriptionKey: @"There are no photos."}]);
             return;
@@ -275,7 +222,7 @@ void ATLAssetURLOfLastPhotoTaken(void(^completionHandler)(NSURL *assetURL, NSErr
         [group enumerateAssetsWithOptions:NSEnumerationReverse usingBlock:^(ALAsset *result, NSUInteger index, BOOL *innerStop) {
             // When done, the asset enumeration block is called another time with result set to nil.
             if (!result) return;
-
+            
             // Stop the enumerations
             *innerStop = YES;
             *stop = YES;
@@ -343,13 +290,32 @@ UIImage *ATLPinPhotoForSnapshot(MKMapSnapshot *snapshot, CLLocationCoordinate2D 
     return finalImage;
 }
 
-NSArray *ATLLinkResultsForText(NSString *text)
+NSArray *ATLTextCheckingResultsForText(NSString *text, NSTextCheckingType linkTypes)
 {
     if (!text) return nil;
     
     NSError *error;
-    NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeLink
+    NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:linkTypes
                                                                error:&error];
     if (error) return nil;
     return [detector matchesInString:text options:kNilOptions range:NSMakeRange(0, text.length)];
+}
+
+NSBundle *ATLResourcesBundle(void)
+{
+    NSBundle *bundlePath = [NSBundle bundleWithIdentifier:@"org.cocoapods.Atlas"];
+    NSString *path = [bundlePath pathForResource:@"AtlasResource" ofType:@"bundle"];
+    NSBundle *resourcesBundle = [NSBundle bundleWithPath:path];
+    if (resourcesBundle) {
+        return resourcesBundle;
+    }
+    NSString *resourcesBundlePath = [[NSBundle mainBundle] pathForResource:@"AtlasResource" ofType:@"bundle"];
+    if (resourcesBundlePath) {
+        return [NSBundle bundleWithPath:resourcesBundlePath];
+    } else {
+        NSBundle *parentBundle = [NSBundle bundleForClass:[ATLMessageCollectionViewCell class]];
+        NSBundle *resourcesBundle = [NSBundle bundleWithPath:[parentBundle pathForResource:@"AtlasResource" ofType:@"bundle"]];
+        if (!resourcesBundle) [NSException raise:NSInternalInconsistencyException format:@"Failed to locate `resources.bundle` in %@", resourcesBundle];
+        return resourcesBundle;
+    }
 }

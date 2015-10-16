@@ -20,6 +20,7 @@
 
 #import <AssetsLibrary/AssetsLibrary.h>
 #import <MobileCoreServices/MobileCoreServices.h>
+#import <MediaPlayer/MediaPlayer.h>
 #import "ATLConversationViewController.h"
 #import "ATLConversationCollectionView.h"
 #import "ATLConstants.h"
@@ -29,10 +30,12 @@
 #import "ATLConversationDataSource.h"
 #import "ATLMediaAttachment.h"
 #import "ATLLocationManager.h"
+@import AVFoundation;
 
-@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, UIActionSheetDelegate, LYRQueryControllerDelegate, CLLocationManagerDelegate>
+@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, UIActionSheetDelegate, CLLocationManagerDelegate>
 
 @property (nonatomic) ATLConversationDataSource *conversationDataSource;
+@property (nonatomic, readwrite) LYRQueryController *queryController;
 @property (nonatomic) BOOL shouldDisplayAvatarItem;
 @property (nonatomic) NSMutableOrderedSet *typingParticipantIDs;
 @property (nonatomic) NSMutableArray *objectChanges;
@@ -52,6 +55,24 @@
 @implementation ATLConversationViewController
 
 static NSInteger const ATLMoreMessagesSection = 0;
+
+static NSString *const ATLPushNotificationSoundName = @"layerbell.caf";
+static NSString *const ATLDefaultPushAlertGIF = @"sent you a GIF.";
+static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
+static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
+static NSString *const ATLDefaultPushAlertVideo = @"sent you a video.";
+static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
+static NSInteger const ATLPhotoActionSheet = 1000;
+
++ (NSCache *)sharedMediaAttachmentCache
+{
+    static NSCache *_sharedCache;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _sharedCache = [NSCache new];
+    });
+    return _sharedCache;
+}
 
 + (instancetype)conversationViewControllerWithLayerClient:(LYRClient *)layerClient;
 {
@@ -89,6 +110,8 @@ static NSInteger const ATLMoreMessagesSection = 0;
     _dateDisplayTimeInterval = 60*60;
     _marksMessagesAsRead = YES;
     _shouldDisplayAvatarItemForOneOtherParticipant = NO;
+    _shouldDisplayAvatarItemForAuthenticatedUser = NO;
+    _avatarItemDisplayFrequency = ATLAvatarItemDisplayFrequencySection;
     _typingParticipantIDs = [NSMutableOrderedSet new];
     _sectionHeaders = [NSHashTable weakObjectsHashTable];
     _sectionFooters = [NSHashTable weakObjectsHashTable];
@@ -141,6 +164,9 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if (!self.hasAppeared) {
         [self.collectionView layoutIfNeeded];
     }
+    if (!self.hasAppeared && [[[self class] sharedMediaAttachmentCache] objectForKey:self.conversation.identifier]) {
+        [self loadCachedMediaAttachments];
+    }
 }
 
 - (void)viewDidAppear:(BOOL)animated
@@ -155,8 +181,27 @@ static NSInteger const ATLMoreMessagesSection = 0;
 
 - (void)dealloc
 {
+    if (self.messageInputToolbar.mediaAttachments.count > 0) {
+        [self cacheMediaAttachments];
+    }
     self.collectionView.delegate = nil;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)cacheMediaAttachments
+{
+    [[[self class] sharedMediaAttachmentCache] setObject:self.messageInputToolbar.mediaAttachments forKey:self.conversation.identifier];
+}
+
+- (void)loadCachedMediaAttachments
+{
+    NSArray *mediaAttachments = [[[self class] sharedMediaAttachmentCache] objectForKey:self.conversation.identifier];
+    for (int i = 0; i < mediaAttachments.count; i++) {
+        ATLMediaAttachment *attachment = [mediaAttachments objectAtIndex:i];
+        BOOL shouldHaveLineBreak = (i < mediaAttachments.count - 1) || !(attachment.mediaMIMEType == ATLMIMETypeTextPlain);
+        [self.messageInputToolbar insertMediaAttachment:attachment withEndLineBreak:shouldHaveLineBreak];
+    }
+    [[[self class] sharedMediaAttachmentCache] removeObjectForKey:self.conversation.identifier];
 }
 
 #pragma mark - Conversation Data Source Setup
@@ -190,7 +235,10 @@ static NSInteger const ATLMoreMessagesSection = 0;
 {
     if (!self.conversation) return;
     
-    LYRQuery *query = ATLMessageListDefaultQueryForConversation(self.conversation);
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:self.conversation];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
+    
     if ([self.dataSource respondsToSelector:@selector(conversationViewController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationViewController:self willLoadWithQuery:query];
         if (![query isKindOfClass:[LYRQuery class]]){
@@ -199,13 +247,11 @@ static NSInteger const ATLMoreMessagesSection = 0;
     }
     
     self.conversationDataSource = [ATLConversationDataSource dataSourceWithLayerClient:self.layerClient query:query];
-    self.conversationDataSource.queryController.delegate = self;
-    self.conversationDataSource.dateDisplayTimeInterval = self.dateDisplayTimeInterval;
-    
-    NSError *error;
-    if (![self.conversationDataSource executeWithError:&error]) {
-        NSLog(@"Failed fetching messages with error %@", error);
+    if (!self.conversationDataSource) {
+        return;
     }
+    self.conversationDataSource.queryController.delegate = self;
+    self.queryController = self.conversationDataSource.queryController;
     self.showingMoreMessagesIndicator = [self.conversationDataSource moreMessagesAvailable];
     [self.collectionView reloadData];
 }
@@ -225,7 +271,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
     self.messageInputToolbar.leftAccessoryButton.enabled = shouldEnableButton;
     
     // Mark all messages as read if needed
-    if (self.conversation.lastMessage) {
+    if (self.conversation.lastMessage && self.marksMessagesAsRead) {
         [self.conversation markAllMessagesAsRead:nil];
     }
 }
@@ -250,7 +296,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section
 {
     if (section == ATLMoreMessagesSection) return 0;
-    
+
     // Each message is represented by one cell no matter how many parts it has.
     return 1;
 }
@@ -273,6 +319,9 @@ static NSInteger const ATLMoreMessagesSection = 0;
     
     UICollectionViewCell<ATLMessagePresenting> *cell =  [self.collectionView dequeueReusableCellWithReuseIdentifier:reuseIdentifier forIndexPath:indexPath];
     [self configureCell:cell forMessage:message indexPath:indexPath];
+    if ([self.delegate respondsToSelector:@selector(conversationViewController:configureCell:forMessage:)]) {
+        [self.delegate conversationViewController:self configureCell:cell forMessage:message];
+    }
     return cell;
 }
 
@@ -316,10 +365,10 @@ static NSInteger const ATLMoreMessagesSection = 0;
     }
     NSAttributedString *dateString;
     NSString *participantName;
-    if ([self.conversationDataSource shouldDisplayDateLabelForSection:section]) {
+    if ([self shouldDisplayDateLabelForSection:section]) {
         dateString = [self attributedStringForMessageDate:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
-    if ([self.conversationDataSource shouldDisplaySenderLabelForSection:section]) {
+    if ([self shouldDisplaySenderLabelForSection:section]) {
         participantName = [self participantNameForMessage:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
     CGFloat height = [ATLConversationCollectionViewHeader headerHeightWithDateString:dateString participantName:participantName inView:self.collectionView];
@@ -330,10 +379,10 @@ static NSInteger const ATLMoreMessagesSection = 0;
 {
     if (section == ATLMoreMessagesSection) return CGSizeZero;
     NSAttributedString *readReceipt;
-    if ([self.conversationDataSource shouldDisplayReadReceiptForSection:section]) {
+    if ([self shouldDisplayReadReceiptForSection:section]) {
         readReceipt = [self attributedStringForRecipientStatusOfMessage:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
-    BOOL shouldClusterMessage = [self.conversationDataSource shouldClusterMessageAtSection:section];
+    BOOL shouldClusterMessage = [self shouldClusterMessageAtSection:section];
     CGFloat height = [ATLConversationCollectionViewFooter footerHeightWithRecipientStatus:readReceipt clustered:shouldClusterMessage];
     return CGSizeMake(0, height);
 }
@@ -370,16 +419,17 @@ static NSInteger const ATLMoreMessagesSection = 0;
 - (void)configureCell:(UICollectionViewCell<ATLMessagePresenting> *)cell forMessage:(LYRMessage *)message indexPath:(NSIndexPath *)indexPath
 {
     [cell presentMessage:message];
-    [cell shouldDisplayAvatarItem:self.shouldDisplayAvatarItem];
+    BOOL willDisplayAvatarItem = (![message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) ? self.shouldDisplayAvatarItem : (self.shouldDisplayAvatarItem && self.shouldDisplayAvatarItemForAuthenticatedUser);
+    [cell shouldDisplayAvatarItem:willDisplayAvatarItem];
     
-    if ([self.conversationDataSource shouldDisplayAvatarItemAtIndexPath:indexPath] && self.shouldDisplayAvatarItem) {
+    if ([self shouldDisplayAvatarItemAtIndexPath:indexPath] && self.shouldDisplayAvatarItem) {
         [cell updateWithSender:[self participantForIdentifier:message.sender.userID]];
     } else {
         [cell updateWithSender:nil];
     }
     
 #if !defined(AF_APP_EXTENSIONS)
-    if (message.isUnread && [[UIApplication sharedApplication] applicationState] == UIApplicationStateActive) {
+    if (message.isUnread && [[UIApplication sharedApplication] applicationState] == UIApplicationStateActive && self.marksMessagesAsRead) {
         [message markAsRead:nil];
     }
 #endif
@@ -389,7 +439,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
 {
     LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
     footer.message = message;
-    if ([self.conversationDataSource shouldDisplayReadReceiptForSection:indexPath.section]) {
+    if ([self shouldDisplayReadReceiptForSection:indexPath.section]) {
         [footer updateWithAttributedStringForRecipientStatus:[self attributedStringForRecipientStatusOfMessage:message]];
     } else {
         [footer updateWithAttributedStringForRecipientStatus:nil];
@@ -400,10 +450,10 @@ static NSInteger const ATLMoreMessagesSection = 0;
 {
     LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
     header.message = message;
-    if ([self.conversationDataSource shouldDisplayDateLabelForSection:indexPath.section]) {
+    if ([self shouldDisplayDateLabelForSection:indexPath.section]) {
         [header updateWithAttributedStringForDate:[self attributedStringForMessageDate:message]];
     }
-    if ([self.conversationDataSource shouldDisplaySenderLabelForSection:indexPath.section]) {
+    if ([self shouldDisplaySenderLabelForSection:indexPath.section]) {
         [header updateWithParticipantName:[self participantNameForMessage:message]];
     }
 }
@@ -420,29 +470,105 @@ static NSInteger const ATLMoreMessagesSection = 0;
     }
 }
 
+- (BOOL)shouldDisplayDateLabelForSection:(NSUInteger)section
+{
+    if (section < ATLNumberOfSectionsBeforeFirstMessageSection) return NO;
+    if (section == ATLNumberOfSectionsBeforeFirstMessageSection) return YES;
+    
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
+    LYRMessage *previousMessage = [self.conversationDataSource messageAtCollectionViewSection:section - 1];
+    if (!previousMessage.sentAt) return NO;
+    
+    NSDate *date = message.sentAt ?: [NSDate date];
+    NSTimeInterval interval = [date timeIntervalSinceDate:previousMessage.sentAt];
+    if (interval > self.dateDisplayTimeInterval) {
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)shouldDisplaySenderLabelForSection:(NSUInteger)section {
+    if (self.conversation.participants.count <= 2) return NO;
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
+    if ([message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) return NO;
+    if (section > ATLNumberOfSectionsBeforeFirstMessageSection) {
+        LYRMessage *previousMessage = [self.conversationDataSource messageAtCollectionViewSection:section - 1];
+        if ([previousMessage.sender.userID isEqualToString:message.sender.userID]) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
+- (BOOL)shouldDisplayReadReceiptForSection:(NSUInteger)section
+{
+    // Only show read receipt if last message was sent by currently authenticated user
+    NSInteger lastQueryControllerRow = [self.conversationDataSource.queryController numberOfObjectsInSection:0] - 1;
+    NSInteger lastSection = [self.conversationDataSource collectionViewSectionForQueryControllerRow:lastQueryControllerRow];
+    if (section != lastSection) return NO;
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
+    if (![message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) return NO;
+    
+    return YES;
+}
+
+- (BOOL)shouldClusterMessageAtSection:(NSUInteger)section
+{
+    if (section == self.collectionView.numberOfSections - 1) {
+        return NO;
+    }
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
+    LYRMessage *nextMessage = [self.conversationDataSource messageAtCollectionViewSection:section + 1];
+    if (!nextMessage.receivedAt) {
+        return NO;
+    }
+    NSDate *date = message.receivedAt ?: [NSDate date];
+    NSTimeInterval interval = [nextMessage.receivedAt timeIntervalSinceDate:date];
+    return (interval < 60);
+}
+
+- (BOOL)shouldDisplayAvatarItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (!self.shouldDisplayAvatarItem) return NO;
+    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
+    if (message.sender.userID == nil) {
+        return NO;
+    }
+    
+    if ([message.sender.userID isEqualToString:self.layerClient.authenticatedUserID] && !self.shouldDisplayAvatarItemForAuthenticatedUser) {
+        return NO;
+    }
+    if (![self shouldClusterMessageAtSection:indexPath.section] && self.avatarItemDisplayFrequency == ATLAvatarItemDisplayFrequencyCluster) {
+        return YES;
+    }
+    NSInteger lastQueryControllerRow = [self.conversationDataSource.queryController numberOfObjectsInSection:0] - 1;
+    NSInteger lastSection = [self.conversationDataSource collectionViewSectionForQueryControllerRow:lastQueryControllerRow];
+    if (indexPath.section < lastSection) {
+        LYRMessage *nextMessage = [self.conversationDataSource messageAtCollectionViewSection:indexPath.section + 1];
+        // If the next message is sent by the same user, no
+        if ([nextMessage.sender.userID isEqualToString:message.sender.userID] && self.avatarItemDisplayFrequency != ATLAvatarItemDisplayFrequencyAll) {
+            return NO;
+        }
+    }
+    return YES;
+}
+
 #pragma mark - ATLMessageInputToolbarDelegate
 
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapLeftAccessoryButton:(UIButton *)leftAccessoryButton
 {
-    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Take Photo", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
-    }]];
+    if (messageInputToolbar.textInputView.isFirstResponder) {
+        [messageInputToolbar.textInputView resignFirstResponder];
+    }
     
-    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Last Photo Taken", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        [self captureLastPhotoTaken];
-    }]];
-    
-    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Photo Library", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
-    }]];
-    
-    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
-        [self.messageInputToolbar.textInputView becomeFirstResponder];
-    }]];
-    
-    [self.messageInputToolbar.textInputView resignFirstResponder];
-    [self presentViewController:alertController animated:YES completion:nil];
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil
+                                                             delegate:self
+                                                    cancelButtonTitle:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.cancel.key", @"Cancel", nil)
+                                               destructiveButtonTitle:nil
+                                                    otherButtonTitles:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.takephoto.key", @"Take Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.lastphoto.key", @"Last Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.library.key", @"Photo/Video Library", nil), nil];
+    [actionSheet showInView:self.view];
+    actionSheet.tag = ATLPhotoActionSheet;
+>>>>>>> upstream/master
 }
 
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapRightAccessoryButton:(UIButton *)rightAccessoryButton
@@ -450,8 +576,10 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if (!self.conversation) {
         return;
     }
+    
+    // If there's no content in the input field, send the location.
     NSOrderedSet *messages = [self messagesForMediaAttachments:messageInputToolbar.mediaAttachments];
-    if (messages.count == 0) {
+    if (messages.count == 0 && messageInputToolbar.textInputView.text.length == 0) {
         [self sendLocationMessage];
     } else {
         for (LYRMessage *message in messages) {
@@ -480,19 +608,34 @@ static NSInteger const ATLMoreMessagesSection = 0;
     NSMutableOrderedSet *messages = [NSMutableOrderedSet new];
     for (ATLMediaAttachment *attachment in mediaAttachments){
         NSArray *messageParts = ATLMessagePartsWithMediaAttachment(attachment);
-        NSString *pushText;
-        if ([attachment.mediaMIMEType isEqualToString:ATLMIMETypeTextPlain]) {
-            pushText = attachment.textRepresentation;
-        } else {
-            NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
-            pushText = ATLPushTextForMessage(senderName, attachment.mediaMIMEType);
-        }
-        LYRMessage *message = ATLMessageForMessageParameters(self.layerClient, messageParts, pushText);
-        if (message) {
-            [messages addObject:message];
-        }
+        LYRMessage *message = [self messageForMessageParts:messageParts MIMEType:attachment.mediaMIMEType pushText:(([attachment.mediaMIMEType isEqualToString:ATLMIMETypeTextPlain]) ? attachment.textRepresentation : nil)];
+        if (message)[messages addObject:message];
     }
     return messages;
+}
+
+- (LYRMessage *)messageForMessageParts:(NSArray *)parts MIMEType:(NSString *)MIMEType pushText:(NSString *)pushText;
+{
+    NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
+    NSString *completePushText;
+    if (!pushText) {
+        if ([MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
+            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertGIF];
+        } else if ([MIMEType isEqualToString:ATLMIMETypeImagePNG] || [MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
+            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertImage];
+        } else if ([MIMEType isEqualToString:ATLMIMETypeLocation]) {
+            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertLocation];
+        } else if ([MIMEType isEqualToString:ATLMIMETypeVideoMP4]){
+            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertVideo];
+        } else {
+            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertText];
+        }
+    } else {
+        completePushText = [NSString stringWithFormat:@"%@: %@", senderName, pushText];
+    }
+    
+    LYRMessage *message = ATLMessageForParts(self.layerClient, parts, completePushText, ATLPushNotificationSoundName);
+    return message;
 }
 
 - (void)sendMessage:(LYRMessage *)message
@@ -541,6 +684,30 @@ static NSInteger const ATLMoreMessagesSection = 0;
     [self sendMessage:message];
 }
 
+#pragma mark - UIActionSheetDelegate
+
+- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
+{
+    if (actionSheet.tag == ATLPhotoActionSheet) {
+        switch (buttonIndex) {
+            case 0:
+                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
+                break;
+                
+            case 1:
+                [self captureLastPhotoTaken];
+                break;
+                
+            case 2:
+                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
+                break;
+                
+            default:
+                break;
+        }
+    }
+}
+
 #pragma mark - Image Picking
 
 - (void)displayImagePickerWithSourceType:(UIImagePickerControllerSourceType)sourceType;
@@ -550,7 +717,9 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if (pickerSourceTypeAvailable) {
         UIImagePickerController *picker = [[UIImagePickerController alloc] init];
         picker.delegate = self;
+        picker.mediaTypes = [UIImagePickerController availableMediaTypesForSourceType:sourceType];
         picker.sourceType = sourceType;
+        picker.videoQuality = UIImagePickerControllerQualityTypeHigh;
         [self.navigationController presentViewController:picker animated:YES completion:nil];
     }
 }
@@ -562,7 +731,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
             NSLog(@"Failed to capture last photo with error: %@", [error localizedDescription]);
         } else {
             ATLMediaAttachment *mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
-            [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+            [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
             [self.messageInputToolbar.textInputView becomeFirstResponder];
         }
     });
@@ -572,21 +741,26 @@ static NSInteger const ATLMoreMessagesSection = 0;
 
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
-    NSString *mediaType = info[UIImagePickerControllerMediaType];
-    if ([mediaType isEqualToString:(__bridge NSString *)kUTTypeImage]) {
-        NSURL *assetURL = (NSURL *)info[UIImagePickerControllerReferenceURL];
-        ATLMediaAttachment *mediaAttachment;
-        if (assetURL) {
-            mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:assetURL thumbnailSize:ATLDefaultThumbnailSize];
-        } else if (info[UIImagePickerControllerOriginalImage]) {
-            mediaAttachment = [ATLMediaAttachment mediaAttachmentWithImage:info[UIImagePickerControllerOriginalImage]
-                                                                  metadata:info[UIImagePickerControllerMediaMetadata]
-                                                             thumbnailSize:ATLDefaultThumbnailSize];
-        } else {
-            return;
-        }
-        [self.messageInputToolbar insertMediaAttachment:mediaAttachment];
+    ATLMediaAttachment *mediaAttachment;
+    if (info[UIImagePickerControllerMediaURL]) {
+        // Video recorded within the app or was picked and edited in
+        // the image picker.
+        NSURL *moviePath = [NSURL fileURLWithPath:(NSString *)[[info objectForKey:UIImagePickerControllerMediaURL] path]];
+        mediaAttachment = [ATLMediaAttachment mediaAttachmentWithFileURL:moviePath thumbnailSize:ATLDefaultThumbnailSize];
+    } else if (info[UIImagePickerControllerReferenceURL]) {
+        // Photo taken or video recorded within the app.
+        mediaAttachment = [ATLMediaAttachment mediaAttachmentWithAssetURL:info[UIImagePickerControllerReferenceURL] thumbnailSize:ATLDefaultThumbnailSize];
+    } else if (info[UIImagePickerControllerOriginalImage]) {
+        // Image picked from the image picker.
+        mediaAttachment = [ATLMediaAttachment mediaAttachmentWithImage:info[UIImagePickerControllerOriginalImage] metadata:info[UIImagePickerControllerMediaMetadata] thumbnailSize:ATLDefaultThumbnailSize];
+    } else {
+        return;
     }
+    
+    if (mediaAttachment) {
+        [self.messageInputToolbar insertMediaAttachment:mediaAttachment withEndLineBreak:YES];
+    }
+    
     [self.navigationController dismissViewControllerAnimated:YES completion:^{
         [self.messageInputToolbar.textInputView becomeFirstResponder];
     }];
@@ -646,7 +820,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
 
 - (void)handleApplicationWillEnterForeground:(NSNotification *)notification
 {
-    if (self.conversation) {
+    if (self.conversation && self.marksMessagesAsRead) {
         NSError *error;
         BOOL success = [self.conversation markAllMessagesAsRead:&error];
         if (!success) {
@@ -1009,51 +1183,61 @@ static NSInteger const ATLMoreMessagesSection = 0;
     [self.objectChanges addObject:[ATLDataSourceChange changeObjectWithType:type newIndex:newIndex currentIndex:currentIndex]];
 }
 
+- (void)queryControllerWillChangeContent:(LYRQueryController *)queryController
+{
+    // Implemented by subclass
+}
+
 - (void)queryControllerDidChangeContent:(LYRQueryController *)queryController
 {
+    NSArray *objectChanges = [self.objectChanges copy];
+    [self.objectChanges removeAllObjects];
+    
     if (self.conversationDataSource.isExpandingPaginationWindow) {
         self.showingMoreMessagesIndicator = [self.conversationDataSource moreMessagesAvailable];
         [self reloadCollectionViewAdjustingForContentHeightChange];
         return;
     }
     
-    if (self.objectChanges.count == 0) {
+    if (objectChanges.count == 0) {
         [self configurePaginationWindow];
         [self configureMoreMessagesIndicatorVisibility];
         return;
     }
     
-    dispatch_suspend(self.animationQueue);
     // Prevent scrolling if user has scrolled up into the conversation history.
     BOOL shouldScrollToBottom = [self shouldScrollToBottom];
-    [self.collectionView performBatchUpdates:^{
-        for (ATLDataSourceChange *change in self.objectChanges) {
-            switch (change.type) {
-                case LYRQueryControllerChangeTypeInsert:
-                    [self.collectionView insertSections:[NSIndexSet indexSetWithIndex:change.newIndex]];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeMove:
-                    [self.collectionView moveSection:change.currentIndex toSection:change.newIndex];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeDelete:
-                    [self.collectionView deleteSections:[NSIndexSet indexSetWithIndex:change.currentIndex]];
-                    break;
-                    
-                case LYRQueryControllerChangeTypeUpdate:
-                    // If we call reloadSections: for a section that is already being animated due to another move (e.g. moving section 17 to 16 causes section 16 to be moved/animated to 17 and then we also reload section 16), UICollectionView will throw an exception. But since all onscreen sections will be reconfigured (see below) we don't need to reload the sections here anyway.
-                    break;
-                    
-                default:
-                    break;
-            }
-        }
-        [self.objectChanges removeAllObjects];
-    } completion:^(BOOL finished) {
-        dispatch_resume(self.animationQueue);
-    }];
     
+    // ensure the animation's queue will resume
+    if (self.collectionView) {
+        dispatch_suspend(self.animationQueue);
+        [self.collectionView performBatchUpdates:^{
+            for (ATLDataSourceChange *change in objectChanges) {
+                switch (change.type) {
+                    case LYRQueryControllerChangeTypeInsert:
+                        [self.collectionView insertSections:[NSIndexSet indexSetWithIndex:change.newIndex]];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeMove:
+                        [self.collectionView moveSection:change.currentIndex toSection:change.newIndex];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeDelete:
+                        [self.collectionView deleteSections:[NSIndexSet indexSetWithIndex:change.currentIndex]];
+                        break;
+                        
+                    case LYRQueryControllerChangeTypeUpdate:
+                        // If we call reloadSections: for a section that is already being animated due to another move (e.g. moving section 17 to 16 causes section 16 to be moved/animated to 17 and then we also reload section 16), UICollectionView will throw an exception. But since all onscreen sections will be reconfigured (see below) we don't need to reload the sections here anyway.
+                        break;
+                        
+                    default:
+                        break;
+                }
+            }
+        } completion:^(BOOL finished) {
+            dispatch_resume(self.animationQueue);
+        }];
+    }
     [self configureCollectionViewElements];
     
     if (shouldScrollToBottom)  {
@@ -1147,7 +1331,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
     NSString *participantName;
     if (message.sender.userID) {
         id<ATLParticipant> participant = [self participantForIdentifier:message.sender.userID];
-        participantName = participant.fullName ?: @"Unknown User";
+        participantName = participant.fullName ?: ATLLocalizedString(@"atl.conversation.participant.unknown.key", @"Unknown User", nil);
     } else {
         participantName = message.sender.name;
     }

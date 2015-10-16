@@ -38,14 +38,20 @@
 {
     self = [super init];
     if (self) {
-        _layerClient = layerClient;
+        NSUInteger numberOfMessagesAvailable = [layerClient countForQuery:query error:nil];
+        NSUInteger numberOfMessagesToDisplay = MIN(numberOfMessagesAvailable, ATLQueryControllerPaginationWindow);
         
-        _queryController = [layerClient queryControllerWithQuery:query error:nil];
+        NSError *error = nil;
+        _queryController = [layerClient queryControllerWithQuery:query error:&error];
+        if (!_queryController) {
+            NSLog(@"LayerKit failed to create a query controller with error: %@", error);
+            return nil;
+        }
         _queryController.updatableProperties = [NSSet setWithObjects:@"parts.transferStatus", @"recipientStatusByUserID", @"sentAt", nil];
+        _queryController.paginationWindow = -numberOfMessagesToDisplay;
         
-        self.paginationIncrement = 30;
-        _dateDisplayTimeInterval = 60*60;
-        _numberOfSectionsBeforeFirstMessage = 1;
+        BOOL success = [_queryController execute:&error];
+        if (!success) NSLog(@"LayerKit failed to execute query with error: %@", error);
     }
     return self;
 }
@@ -159,10 +165,16 @@
 - (void)expandPaginationWindow
 {
     self.expandingPaginationWindow = YES;
-    if (!self.queryController) return;
+    if (!self.queryController) {
+        self.expandingPaginationWindow = NO;
+        return;
+    }
     
     BOOL moreMessagesAvailable = self.queryController.totalNumberOfObjects > ABS(self.queryController.paginationWindow);
-    if (!moreMessagesAvailable) return;
+    if (!moreMessagesAvailable) {
+        self.expandingPaginationWindow = NO;
+        return;
+    }
     
     NSUInteger numberOfMessagesToDisplay = MIN(-self.queryController.paginationWindow + self.paginationIncrement, self.queryController.totalNumberOfObjects);
     self.queryController.paginationWindow = -numberOfMessagesToDisplay;
