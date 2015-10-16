@@ -21,6 +21,8 @@
 #import <UIKit/UIKit.h> 
 #import <LayerKit/LayerKit.h>
 
+extern NSInteger const ATLNumberOfSectionsBeforeFirstMessageSection;
+
 /**
  @abstract The `ATLConversationDataSource` manages an `LYRQueryController` object whose data is displayed in an
  `ATLConversationViewController`. The `ATLConversationDataSource` also provides convenience methods for the translation 

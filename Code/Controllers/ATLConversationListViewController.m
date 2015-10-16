@@ -223,7 +223,9 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
 
 - (void)setupConversationDataSource
 {
-    LYRQuery *query = ATLConversationListDefaultQueryForAuthenticatedUserID(self.layerClient.authenticatedUserID);
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:self.layerClient.authenticatedUserID];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
     if ([self.dataSource respondsToSelector:@selector(conversationListViewController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationListViewController:self willLoadWithQuery:query];
         if (![query isKindOfClass:[LYRQuery class]]){
