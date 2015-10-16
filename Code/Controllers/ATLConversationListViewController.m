@@ -28,7 +28,7 @@ static NSString *const ATLVideoMIMETypePlaceholderText = @"Attachment: Video";
 static NSString *const ATLLocationMIMETypePlaceholderText = @"Attachment: Location";
 static NSString *const ATLGIFMIMETypePlaceholderText = @"Attachment: GIF";
 
-@interface ATLConversationListViewController () <UIActionSheetDelegate, LYRQueryControllerDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchDisplayDelegate>
+@interface ATLConversationListViewController () <LYRQueryControllerDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchDisplayDelegate>
 
 @property (nonatomic) LYRQueryController *queryController;
 @property (nonatomic) LYRQueryController *searchQueryController;
@@ -365,7 +365,6 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
     self.conversationToDelete = [self.queryController objectAtIndexPath:indexPath];
 
     UIAlertController *controller = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:ATLConversationListViewControllerDeletionModeGlobal otherButtonTitles:ATLConversationListViewControllerDeletionModeLocal, nil];
     [controller addAction:[UIAlertAction actionWithTitle:@"Global" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         [actionSheet showInView:self.view];
         [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeAllParticipants];

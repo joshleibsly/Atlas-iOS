@@ -32,7 +32,7 @@
 #import "ATLLocationManager.h"
 @import AVFoundation;
 
-@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, UIActionSheetDelegate, CLLocationManagerDelegate>
+@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, CLLocationManagerDelegate>
 
 @property (nonatomic) ATLConversationDataSource *conversationDataSource;
 @property (nonatomic, readwrite) LYRQueryController *queryController;
@@ -561,14 +561,22 @@ static NSInteger const ATLPhotoActionSheet = 1000;
         [messageInputToolbar.textInputView resignFirstResponder];
     }
     
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil
-                                                             delegate:self
-                                                    cancelButtonTitle:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.cancel.key", @"Cancel", nil)
-                                               destructiveButtonTitle:nil
-                                                    otherButtonTitles:ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.takephoto.key", @"Take Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.lastphoto.key", @"Last Photo/Video", nil), ATLLocalizedString(@"atl.conversation.toolbar.actionsheet.library.key", @"Photo/Video Library", nil), nil];
-    [actionSheet showInView:self.view];
-    actionSheet.tag = ATLPhotoActionSheet;
->>>>>>> upstream/master
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Take Photo", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        if (section == ATLNumberOfSectionsBeforeFirstMessageSection) return YES;
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Last Photo Taken", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self captureLastPhotoTaken];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Photo Library", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }]];
+    
+    [self presentViewController:alertController animated:YES completion:nil];
 }
 
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapRightAccessoryButton:(UIButton *)rightAccessoryButton
@@ -682,30 +690,6 @@ static NSInteger const ATLPhotoActionSheet = 1000;
     NSOrderedSet *messages = [self defaultMessagesForMediaAttachments:@[attachement]];
     LYRMessage *message = messages.firstObject;
     [self sendMessage:message];
-}
-
-#pragma mark - UIActionSheetDelegate
-
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
-{
-    if (actionSheet.tag == ATLPhotoActionSheet) {
-        switch (buttonIndex) {
-            case 0:
-                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
-                break;
-                
-            case 1:
-                [self captureLastPhotoTaken];
-                break;
-                
-            case 2:
-                [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
-                break;
-                
-            default:
-                break;
-        }
-    }
 }
 
 #pragma mark - Image Picking
