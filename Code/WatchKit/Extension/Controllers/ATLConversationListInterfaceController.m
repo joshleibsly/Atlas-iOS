@@ -23,6 +23,10 @@ static NSDateFormatter *ATLDateFormatter()
     return dateFormatter;
 }
 
+static NSString *const ATLImageMIMETypePlaceholderText = @"Attachment: Image";
+static NSString *const ATLLocationMIMETypePlaceholderText = @"Attachment: Location";
+static NSString *const ATLGIFMIMETypePlaceholderText = @"Attachment: GIF";
+
 @interface ATLConversationListInterfaceController () <LYRQueryControllerDelegate>
 
 @property (nonatomic) LYRQueryController *queryController;
@@ -53,7 +57,7 @@ static NSDateFormatter *ATLDateFormatter()
 - (LYRQueryController *)queryControllerForConversationList
 {
     LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
-    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:userID];
+    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:self.layerClient.authenticatedUserID];
     query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
     query.limit = 10;
     if ([self.dataSource respondsToSelector:@selector(conversationListInterfaceController:willLoadWithQuery:)]) {
@@ -80,7 +84,7 @@ static NSDateFormatter *ATLDateFormatter()
     [row.titleLabel setText:[self titleForConversation:conversation]];
    
     NSString *lastMessageText = nil;
-    LYRMessagePart *messagePart = lastMessage.parts[0];
+    LYRMessagePart *messagePart = conversation.lastMessage.parts[0];
     if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain]) {
         lastMessageText = [[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding];
     } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
