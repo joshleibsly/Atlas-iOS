@@ -563,7 +563,6 @@ static NSInteger const ATLPhotoActionSheet = 1000;
     
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Take Photo", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        if (section == ATLNumberOfSectionsBeforeFirstMessageSection) return YES;
         [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
     }]];
     [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Last Photo Taken", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
