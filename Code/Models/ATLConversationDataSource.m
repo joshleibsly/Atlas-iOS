@@ -29,6 +29,9 @@
 
 @implementation ATLConversationDataSource
 
+NSInteger const ATLNumberOfSectionsBeforeFirstMessageSection = 1;
+NSInteger const ATLQueryControllerPaginationWindow = 30;
+
 + (instancetype)dataSourceWithLayerClient:(LYRClient *)layerClient query:(LYRQuery *)query
 {
     return [[self alloc] initWithLayerClient:layerClient query:query];
