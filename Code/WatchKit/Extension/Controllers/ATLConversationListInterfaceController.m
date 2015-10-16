@@ -52,7 +52,9 @@ static NSDateFormatter *ATLDateFormatter()
 
 - (LYRQueryController *)queryControllerForConversationList
 {
-    LYRQuery *query = ATLConversationListDefaultQueryForAuthenticatedUserID(self.layerClient.authenticatedUserID);
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:userID];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
     query.limit = 10;
     if ([self.dataSource respondsToSelector:@selector(conversationListInterfaceController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationListInterfaceController:self willLoadWithQuery:query];
@@ -77,8 +79,23 @@ static NSDateFormatter *ATLDateFormatter()
     LYRConversation *conversation = [self.queryController objectAtIndexPath:[NSIndexPath indexPathForRow:index inSection:0]];
     [row.titleLabel setText:[self titleForConversation:conversation]];
    
-    NSString *lastMessage = ATLLastMessageTextForMessage(conversation.lastMessage);
-    [row.lastMessageLabel setText:lastMessage];
+    NSString *lastMessageText = nil;
+    LYRMessagePart *messagePart = lastMessage.parts[0];
+    if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain]) {
+        lastMessageText = [[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding];
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImagePNG]) {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
+        lastMessageText = ATLGIFMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeLocation]) {
+        lastMessageText = ATLLocationMIMETypePlaceholderText;
+    } else {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    }
+    
+    [row.lastMessageLabel setText:lastMessageText];
     [row.dateLabel setText:[ATLDateFormatter() stringFromDate:conversation.lastMessage.receivedAt]];
 }
 
