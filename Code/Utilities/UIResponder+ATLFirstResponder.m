@@ -26,12 +26,16 @@ static __weak id currentFirstResponder;
 
 + (id)atl_currentFirstResponder {
     currentFirstResponder = nil;
+#ifndef AF_APP_EXTENSIONS
     [[UIApplication sharedApplication] sendAction:@selector(atl_findFirstResponder:) to:nil from:nil forEvent:nil];
+#endif
     return currentFirstResponder;
 }
 
 - (void)atl_findFirstResponder:(id)sender {
+#ifndef AF_APP_EXTENSIONS
     currentFirstResponder = self;
+#endif
 }
 
 @end
