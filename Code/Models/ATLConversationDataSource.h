@@ -55,7 +55,7 @@
  @error A pointer to a `NSError` object that will describe any failure that occured.
  @return A boolean value that indicates whether or not the query was successful.
 */
-+- (BOOL)executeWithError:(NSError **)error;
+- (BOOL)executeWithError:(NSError **)error;
 
 
 ///---------------------------------------
