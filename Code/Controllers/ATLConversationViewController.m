@@ -533,7 +533,7 @@ static NSInteger const ATLMoreMessagesSection = 0;
             NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
             pushText = ATLPushTextForMessage(senderName, attachment.mediaMIMEType);
         }
-        LYRMessage *message = ATLMessageForMessageParameters(self.layerClient, messageParts, pushText);
+        LYRMessage *message = ATLMessageForParts(self.layerClient, messageParts, pushText, @"layerbell.caf");
         if (message) {
             [messages addObject:message];
         }
