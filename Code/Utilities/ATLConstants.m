@@ -55,3 +55,6 @@ UIFont *ATLBoldFont(CGFloat size)
     return [UIFont fontWithName:@"HelveticaNeue-Medium" size:size];
 }
 
+NSString *ATLLayerClientKey = @"ATLLayerClientKey";
+
+NSString *ATLLayerConversationKey = @"ATLConversationKey";

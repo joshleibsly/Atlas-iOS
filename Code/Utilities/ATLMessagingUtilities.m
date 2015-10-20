@@ -44,6 +44,19 @@ NSString *const ATLImagePreviewHeightKey = @"height";
 NSString *const ATLLocationLatitudeKey = @"lat";
 NSString *const ATLLocationLongitudeKey = @"lon";
 
+NSString *const ATLConversationCellReuseIdentifier = @"ATLConversationCellReuseIdentifier";
+NSString *const ATLImageMIMETypePlaceholderText = @"Attachment: Image";
+NSString *const ATLVideoMIMETypePlaceholderText = @"Attachment: Video";
+NSString *const ATLLocationMIMETypePlaceholderText = @"Attachment: Location";
+NSString *const ATLGIFMIMETypePlaceholderText = @"Attachment: GIF";
+
+static NSString *const ATLDefaultPushAlertGIF = @"sent you a GIF.";
+static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
+static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
+static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
+static NSString *const ATLPushNotificationSoundName = @"layerbell.caf";
+static NSString *const ATLDefaultPushAlertVideo = @"sent you a video.";
+
 #pragma mark - Max Cell Dimensions
 
 CGFloat ATLMaxCellWidth()
@@ -137,6 +150,22 @@ CGFloat ATLDegreeToRadians(CGFloat degrees)
     return ((M_PI * degrees)/ 180);
 }
 
+#pragma mark - Query Utilities
+
+LYRQuery *ATLConversationListDefaultQueryForAuthenticatedUserID(NSString *userID) {
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:userID];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
+    return query;
+}
+
+LYRQuery *ATLMessageListDefaultQueryForConversation(LYRConversation *conversation) {
+    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
+    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:conversation];
+    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
+    return query;
+}
+
 #pragma mark - Private Message Part Helpers
 
 CGSize  ATLSizeFromOriginalSizeWithConstraint(CGSize originalSize, CGFloat constraint)
@@ -161,6 +190,53 @@ LYRMessage *ATLMessageForParts(LYRClient *layerClient, NSArray *messageParts, NS
     NSDictionary *options = @{ LYRMessageOptionsPushNotificationConfigurationKey: defaultConfiguration };
     NSError *error;
     LYRMessage *message = [layerClient newMessageWithParts:messageParts options:options error:&error];
+    if (error) {
+        return nil;
+    }
+    return message;
+}
+
+NSString *ATLLastMessageTextForMessage(LYRMessage *lastMessage) {
+    NSString *lastMessageText = nil;
+    LYRMessagePart *messagePart = lastMessage.parts[0];
+    if ([messagePart.MIMEType isEqualToString:ATLMIMETypeTextPlain]) {
+        lastMessageText = [[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding];
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImagePNG]) {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
+        lastMessageText = ATLGIFMIMETypePlaceholderText;
+    } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeLocation]) {
+        lastMessageText = ATLLocationMIMETypePlaceholderText;
+    } else {
+        lastMessageText = ATLImageMIMETypePlaceholderText;
+    }
+    
+    return lastMessageText;
+}
+
+NSString *ATLPushTextForMessage(NSString *senderName, NSString *MIMEType)
+{
+    NSString *completePushText;
+    if ([MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
+        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertGIF];
+    } else if ([MIMEType isEqualToString:ATLMIMETypeImagePNG] || [MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
+        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertImage];
+    } else if ([MIMEType isEqualToString:ATLMIMETypeLocation]) {
+        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertLocation];
+    } else {
+        completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertText];
+    }
+    return completePushText;
+}
+
+LYRMessage *ATLMessageForMessageParameters(LYRClient *client, NSArray *messageParts, NSString *pushText)
+{
+    NSDictionary *pushOptions = @{LYRMessageOptionsPushNotificationAlertKey : pushText,
+                                  LYRMessageOptionsPushNotificationSoundNameKey : ATLPushNotificationSoundName};
+    NSError *error;
+    LYRMessage *message = [client newMessageWithParts:messageParts options:pushOptions error:&error];
     if (error) {
         return nil;
     }

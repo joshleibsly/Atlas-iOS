@@ -21,8 +21,6 @@
 #import <UIKit/UIKit.h> 
 #import <LayerKit/LayerKit.h>
 
-extern NSInteger const ATLNumberOfSectionsBeforeFirstMessageSection;
-
 /**
  @abstract The `ATLConversationDataSource` manages an `LYRQueryController` object whose data is displayed in an
  `ATLConversationViewController`. The `ATLConversationDataSource` also provides convenience methods for the translation 
@@ -47,14 +45,71 @@ extern NSInteger const ATLNumberOfSectionsBeforeFirstMessageSection;
 
 /**
  @abstract The `LYRQueryController` object managing data displayed in the `ATLConversationViewController`.
- @discussion The `queryController` is hydrated with messages belonging to the `LYRConversation` object
- supplied in the designated initializer.
+ @discussion The `queryController` is hydrated with messages belonging to the `LYRConversation` object supplied in the designated initializer.
  */
 @property (nonatomic, readonly) LYRQueryController *queryController;
+
+/**
+ @abstract Excutes the query supplied in the initializer and prepares the query controller for use.
+ @discussion The `ATLConversationDataSource` provides an explict execute method so that configuration may be performed prior to executing the query.
+ @error A pointer to a `NSError` object that will describe any failure that occured.
+ @return A boolean value that indicates whether or not the query was successful.
+*/
++- (BOOL)executeWithError:(NSError **)error;
+
+
+///---------------------------------------
+/// @name Conversation UI Configuration
+///---------------------------------------
+
+/**
+ @abstract The time interval used to determine whehter or not a date string should be displayed in a conversation view.
+ @discussion If the time elapsed between two messages is greater than the `dateDisplayTimeInterval`, a date will be displayed.
+ @defualt `3600`
+*/
+@property (nonatomic) NSTimeInterval dateDisplayTimeInterval;
+
+/**
+ @abstract Determines whether or not a date label should be displayed in a given section.
+*/
+- (BOOL)shouldDisplayDateLabelForSection:(NSUInteger)section;
+
+/**
+ @abstract Determines whether or not a sender label should be displayed in a given section.
+*/
+- (BOOL)shouldDisplaySenderLabelForSection:(NSUInteger)section;
+
+/**
+ @abstract Determines whether or not a read receipt label should be displayed in a given section.
+*/
+- (BOOL)shouldDisplayReadReceiptForSection:(NSUInteger)section;
+
+/**
+ @abstract Determines whether or not messages should be clustered for a given section
+*/
+- (BOOL)shouldClusterMessageAtSection:(NSUInteger)section;
+
+/**
+ @abstract Determines whether or not an avatar item should be displayed in a given section.
+*/
+- (BOOL)shouldDisplayAvatarItemAtIndexPath:(NSIndexPath *)indexPath;
 
 ///---------------------------------------
 /// @name Pagination
 ///---------------------------------------
+
+/**
+ @abstract The number of sections in a list prior to the first message.
+ @discussion Value is used to offset query controller calculations so that a `Loading Messages` spinner may be displayed during pagination.
+ @default `1`
+*/
+@property (nonatomic) NSUInteger numberOfSectionsBeforeFirstMessage;
+
+/**
+ @abstract The pagination increment to be used when paginating messages.
+ @default `30`
+*/
+@property (nonatomic) NSUInteger paginationIncrement;
 
 /**
  @abstract Asks the receiver if its `queryController` has more messages to display than are currently displayed on screen.

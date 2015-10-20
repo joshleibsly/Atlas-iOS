@@ -55,12 +55,6 @@
 @implementation ATLConversationViewController
 
 static NSInteger const ATLMoreMessagesSection = 0;
-static NSString *const ATLPushNotificationSoundName = @"layerbell.caf";
-static NSString *const ATLDefaultPushAlertGIF = @"sent you a GIF.";
-static NSString *const ATLDefaultPushAlertImage = @"sent you a photo.";
-static NSString *const ATLDefaultPushAlertLocation = @"sent you a location.";
-static NSString *const ATLDefaultPushAlertVideo = @"sent you a video.";
-static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 
 + (NSCache *)sharedMediaAttachmentCache
 {
@@ -233,9 +227,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 {
     if (!self.conversation) return;
     
-    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRMessage class]];
-    query.predicate = [LYRPredicate predicateWithProperty:@"conversation" predicateOperator:LYRPredicateOperatorIsEqualTo value:self.conversation];
-    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"position" ascending:YES]];
+    LYRQuery *query = ATLMessageListDefaultQueryForConversation(self.conversation);
     
     if ([self.dataSource respondsToSelector:@selector(conversationViewController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationViewController:self willLoadWithQuery:query];
@@ -249,7 +241,13 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
         return;
     }
     self.conversationDataSource.queryController.delegate = self;
-    self.queryController = self.conversationDataSource.queryController;
+    self.conversationDataSource.dateDisplayTimeInterval = self.dateDisplayTimeInterval;
+    
+    NSError *error;
+    if (![self.conversationDataSource executeWithError:&error]) {
+        NSLog(@"Failed fetching messages with error %@", error);
+    }
+    
     self.showingMoreMessagesIndicator = [self.conversationDataSource moreMessagesAvailable];
     [self.collectionView reloadData];
 }
@@ -303,7 +301,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
  */
 - (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView
 {
-    return [self.conversationDataSource.queryController numberOfObjectsInSection:0] + ATLNumberOfSectionsBeforeFirstMessageSection;
+    return [self.conversationDataSource.queryController numberOfObjectsInSection:0] + self.conversationDataSource.numberOfSectionsBeforeFirstMessage;
 }
 
 /**
@@ -362,10 +360,10 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     }
     NSAttributedString *dateString;
     NSString *participantName;
-    if ([self shouldDisplayDateLabelForSection:section]) {
+    if ([self.conversationDataSource shouldDisplayDateLabelForSection:section]) {
         dateString = [self attributedStringForMessageDate:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
-    if ([self shouldDisplaySenderLabelForSection:section]) {
+    if ([self.conversationDataSource shouldDisplaySenderLabelForSection:section]) {
         participantName = [self participantNameForMessage:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
     CGFloat height = [ATLConversationCollectionViewHeader headerHeightWithDateString:dateString participantName:participantName inView:self.collectionView];
@@ -376,10 +374,10 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 {
     if (section == ATLMoreMessagesSection) return CGSizeZero;
     NSAttributedString *readReceipt;
-    if ([self shouldDisplayReadReceiptForSection:section]) {
+    if ([self.conversationDataSource shouldDisplayReadReceiptForSection:section]) {
         readReceipt = [self attributedStringForRecipientStatusOfMessage:[self.conversationDataSource messageAtCollectionViewSection:section]];
     }
-    BOOL shouldClusterMessage = [self shouldClusterMessageAtSection:section];
+    BOOL shouldClusterMessage = [self.conversationDataSource shouldClusterMessageAtSection:section];
     CGFloat height = [ATLConversationCollectionViewFooter footerHeightWithRecipientStatus:readReceipt clustered:shouldClusterMessage];
     return CGSizeMake(0, height);
 }
@@ -419,7 +417,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     BOOL willDisplayAvatarItem = (![message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) ? self.shouldDisplayAvatarItem : (self.shouldDisplayAvatarItem && self.shouldDisplayAvatarItemForAuthenticatedUser);
     [cell shouldDisplayAvatarItem:willDisplayAvatarItem];
     
-    if ([self shouldDisplayAvatarItemAtIndexPath:indexPath]) {
+    if ([self.conversationDataSource shouldDisplayAvatarItemAtIndexPath:indexPath] && self.shouldDisplayAvatarItem) {
         [cell updateWithSender:[self participantForIdentifier:message.sender.userID]];
     } else {
         [cell updateWithSender:nil];
@@ -436,7 +434,7 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 {
     LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
     footer.message = message;
-    if ([self shouldDisplayReadReceiptForSection:indexPath.section]) {
+    if ([self.conversationDataSource shouldDisplayReadReceiptForSection:indexPath.section]) {
         [footer updateWithAttributedStringForRecipientStatus:[self attributedStringForRecipientStatusOfMessage:message]];
     } else {
         [footer updateWithAttributedStringForRecipientStatus:nil];
@@ -447,10 +445,10 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 {
     LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
     header.message = message;
-    if ([self shouldDisplayDateLabelForSection:indexPath.section]) {
+    if ([self.conversationDataSource shouldDisplayDateLabelForSection:indexPath.section]) {
         [header updateWithAttributedStringForDate:[self attributedStringForMessageDate:message]];
     }
-    if ([self shouldDisplaySenderLabelForSection:indexPath.section]) {
+    if ([self.conversationDataSource shouldDisplaySenderLabelForSection:indexPath.section]) {
         [header updateWithParticipantName:[self participantNameForMessage:message]];
     }
 }
@@ -465,91 +463,6 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     } else {
         return [ATLIncomingMessageCollectionViewCell cellHeightForMessage:message inView:self.view];
     }
-}
-
-- (BOOL)shouldDisplayDateLabelForSection:(NSUInteger)section
-{
-    if (section < ATLNumberOfSectionsBeforeFirstMessageSection) return NO;
-    if (section == ATLNumberOfSectionsBeforeFirstMessageSection) return YES;
-    
-    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
-    LYRMessage *previousMessage = [self.conversationDataSource messageAtCollectionViewSection:section - 1];
-    if (!previousMessage.sentAt) return NO;
-    
-    NSDate *date = message.sentAt ?: [NSDate date];
-    NSTimeInterval interval = [date timeIntervalSinceDate:previousMessage.sentAt];
-    if (interval > self.dateDisplayTimeInterval) {
-        return YES;
-    }
-    return NO;
-}
-
-- (BOOL)shouldDisplaySenderLabelForSection:(NSUInteger)section
-{
-    if (self.conversation.participants.count <= 2) return NO;
-    
-    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
-    if ([message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) return NO;
-    if (section > ATLNumberOfSectionsBeforeFirstMessageSection) {
-        LYRMessage *previousMessage = [self.conversationDataSource messageAtCollectionViewSection:section - 1];
-        if ([previousMessage.sender.userID isEqualToString:message.sender.userID]) {
-            return NO;
-        }
-    }
-    return YES;
-}
-
-- (BOOL)shouldDisplayReadReceiptForSection:(NSUInteger)section
-{
-    // Only show read receipt if last message was sent by currently authenticated user
-    NSInteger lastQueryControllerRow = [self.conversationDataSource.queryController numberOfObjectsInSection:0] - 1;
-    NSInteger lastSection = [self.conversationDataSource collectionViewSectionForQueryControllerRow:lastQueryControllerRow];
-    if (section != lastSection) return NO;
-    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
-    if (![message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) return NO;
-    
-    return YES;
-}
-
-- (BOOL)shouldClusterMessageAtSection:(NSUInteger)section
-{
-    if (section == self.collectionView.numberOfSections - 1) {
-        return NO;
-    }
-    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewSection:section];
-    LYRMessage *nextMessage = [self.conversationDataSource messageAtCollectionViewSection:section + 1];
-    if (!nextMessage.receivedAt) {
-        return NO;
-    }
-    NSDate *date = message.receivedAt ?: [NSDate date];
-    NSTimeInterval interval = [nextMessage.receivedAt timeIntervalSinceDate:date];
-    return (interval < 60);
-}
-
-- (BOOL)shouldDisplayAvatarItemAtIndexPath:(NSIndexPath *)indexPath
-{
-    if (!self.shouldDisplayAvatarItem) return NO;
-    LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
-    if (message.sender.userID == nil) {
-        return NO;
-    }
-    
-    if ([message.sender.userID isEqualToString:self.layerClient.authenticatedUserID] && !self.shouldDisplayAvatarItemForAuthenticatedUser) {
-        return NO;
-    }
-    if (![self shouldClusterMessageAtSection:indexPath.section] && self.avatarItemDisplayFrequency == ATLAvatarItemDisplayFrequencyCluster) {
-        return YES;
-    }
-    NSInteger lastQueryControllerRow = [self.conversationDataSource.queryController numberOfObjectsInSection:0] - 1;
-    NSInteger lastSection = [self.conversationDataSource collectionViewSectionForQueryControllerRow:lastQueryControllerRow];
-    if (indexPath.section < lastSection) {
-        LYRMessage *nextMessage = [self.conversationDataSource messageAtCollectionViewSection:indexPath.section + 1];
-        // If the next message is sent by the same user, no
-        if ([nextMessage.sender.userID isEqualToString:message.sender.userID] && self.avatarItemDisplayFrequency != ATLAvatarItemDisplayFrequencyAll) {
-            return NO;
-        }
-    }
-    return YES;
 }
 
 #pragma mark - ATLMessageInputToolbarDelegate
@@ -613,34 +526,19 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
     NSMutableOrderedSet *messages = [NSMutableOrderedSet new];
     for (ATLMediaAttachment *attachment in mediaAttachments){
         NSArray *messageParts = ATLMessagePartsWithMediaAttachment(attachment);
-        LYRMessage *message = [self messageForMessageParts:messageParts MIMEType:attachment.mediaMIMEType pushText:(([attachment.mediaMIMEType isEqualToString:ATLMIMETypeTextPlain]) ? attachment.textRepresentation : nil)];
-        if (message)[messages addObject:message];
+        NSString *pushText;
+        if ([attachment.mediaMIMEType isEqualToString:ATLMIMETypeTextPlain]) {
+            pushText = attachment.textRepresentation;
+        } else {
+            NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
+            pushText = ATLPushTextForMessage(senderName, attachment.mediaMIMEType);
+        }
+        LYRMessage *message = ATLMessageForMessageParameters(self.layerClient, messageParts, pushText);
+        if (message) {
+            [messages addObject:message];
+        }
     }
     return messages;
-}
-
-- (LYRMessage *)messageForMessageParts:(NSArray *)parts MIMEType:(NSString *)MIMEType pushText:(NSString *)pushText;
-{
-    NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
-    NSString *completePushText;
-    if (!pushText) {
-        if ([MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
-            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertGIF];
-        } else if ([MIMEType isEqualToString:ATLMIMETypeImagePNG] || [MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
-            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertImage];
-        } else if ([MIMEType isEqualToString:ATLMIMETypeLocation]) {
-            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertLocation];
-        } else if ([MIMEType isEqualToString:ATLMIMETypeVideoMP4]){
-            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertVideo];
-        } else {
-            completePushText = [NSString stringWithFormat:@"%@ %@", senderName, ATLDefaultPushAlertText];
-        }
-    } else {
-        completePushText = [NSString stringWithFormat:@"%@: %@", senderName, pushText];
-    }
-    
-    LYRMessage *message = ATLMessageForParts(self.layerClient, parts, completePushText, ATLPushNotificationSoundName);
-    return message;
 }
 
 - (void)sendMessage:(LYRMessage *)message
@@ -684,7 +582,8 @@ static NSString *const ATLDefaultPushAlertText = @"sent you a message.";
 - (void)sendMessageWithLocation:(CLLocation *)location
 {
     ATLMediaAttachment *attachement = [ATLMediaAttachment mediaAttachmentWithLocation:location];
-    LYRMessage *message = [self messageForMessageParts:ATLMessagePartsWithMediaAttachment(attachement) MIMEType:ATLMIMETypeLocation pushText:nil];
+    NSOrderedSet *messages = [self defaultMessagesForMediaAttachments:@[attachement]];
+    LYRMessage *message = messages.firstObject;
     [self sendMessage:message];
 }
 

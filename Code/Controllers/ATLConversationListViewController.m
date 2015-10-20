@@ -22,13 +22,7 @@
 #import "ATLConversationListViewController.h"
 #import "ATLMessagingUtilities.h"
 
-static NSString *const ATLConversationCellReuseIdentifier = @"ATLConversationCellReuseIdentifier";
-static NSString *const ATLImageMIMETypePlaceholderText = @"Attachment: Image";
-static NSString *const ATLVideoMIMETypePlaceholderText = @"Attachment: Video";
-static NSString *const ATLLocationMIMETypePlaceholderText = @"Attachment: Location";
-static NSString *const ATLGIFMIMETypePlaceholderText = @"Attachment: GIF";
-
-@interface ATLConversationListViewController () <UIActionSheetDelegate, LYRQueryControllerDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchDisplayDelegate>
+@interface ATLConversationListViewController () <LYRQueryControllerDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchDisplayDelegate>
 
 @property (nonatomic) LYRQueryController *queryController;
 @property (nonatomic) LYRQueryController *searchQueryController;
@@ -222,9 +216,7 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
 
 - (void)setupConversationDataSource
 {
-    LYRQuery *query = [LYRQuery queryWithQueryableClass:[LYRConversation class]];
-    query.predicate = [LYRPredicate predicateWithProperty:@"participants" predicateOperator:LYRPredicateOperatorIsIn value:self.layerClient.authenticatedUserID];
-    query.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"lastMessage.receivedAt" ascending:NO]];
+    LYRQuery *query = ATLConversationListDefaultQueryForAuthenticatedUserID(self.layerClient.authenticatedUserID);
     
     if ([self.dataSource respondsToSelector:@selector(conversationListViewController:willLoadWithQuery:)]) {
         query = [self.dataSource conversationListViewController:self willLoadWithQuery:query];
@@ -363,8 +355,23 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
 {
     self.conversationToDelete = [self.queryController objectAtIndexPath:indexPath];
-    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:ATLConversationListViewControllerDeletionModeGlobal otherButtonTitles:ATLConversationListViewControllerDeletionModeLocal, nil];
-    [actionSheet showInView:self.view];
+    
+    UIAlertController *controller = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    [controller addAction:[UIAlertAction actionWithTitle:ATLLocalizedString(@"atl.conversationlist.deletionmode.global.key", ATLConversationListViewControllerDeletionModeGlobal, nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeAllParticipants];
+        [self setEditing:NO animated:YES];
+    }]];
+    
+    [controller addAction:[UIAlertAction actionWithTitle:ATLLocalizedString(@"atl.conversationlist.deletionmode.local.key", ATLConversationListViewControllerDeletionModeLocal, nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self deleteConversationAtIndexPath:indexPath withDeletionMode:LYRDeletionModeLocal];
+        [self setEditing:NO animated:YES];
+    }]];
+    
+    [controller addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self setEditing:NO animated:YES];
+    }]];
+    
+    [self presentViewController:controller animated:YES completion:nil];
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
@@ -373,20 +380,6 @@ NSString *const ATLConversationListViewControllerDeletionModeGlobal = @"Global";
         LYRConversation *conversation = [self.queryController objectAtIndexPath:indexPath];
         [self.delegate conversationListViewController:self didSelectConversation:conversation];
     }
-}
-
-#pragma mark - UIActionSheetDelegate
-
-- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
-{
-    if (buttonIndex == actionSheet.destructiveButtonIndex) {
-        [self deleteConversation:self.conversationToDelete withDeletionMode:LYRDeletionModeAllParticipants];
-    } else if (buttonIndex == actionSheet.firstOtherButtonIndex) {
-        [self deleteConversation:self.conversationToDelete withDeletionMode:LYRDeletionModeLocal];
-    } else if (buttonIndex == actionSheet.cancelButtonIndex) {
-        [self setEditing:NO animated:YES];
-    }
-    self.conversationToDelete = nil;
 }
 
 #pragma mark - Data Source

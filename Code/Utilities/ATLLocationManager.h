@@ -16,9 +16,4 @@
  */
 - (BOOL)locationServicesEnabled;
 
-/**
- @abstract Displays a `UIAlertView` with instructions on enabling location services for the application.
- */
-- (void)displayLocationEnablementAlert;
-
 @end

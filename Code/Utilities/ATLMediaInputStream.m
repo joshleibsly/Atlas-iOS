@@ -795,7 +795,10 @@ static size_t ATLMediaInputStreamPutBytesIntoStreamCallback(void *assetStreamRef
     }
     
     // Copy the consumed data to `buffer`.
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     [self.dataConsumed getBytes:buffer length:bytesToConsume];
+    #pragma GCC diagnostic pop
     ATLMediaInputStreamLog(@"input stream: passed data to receiver");
     
     // Clear transfer buffer.

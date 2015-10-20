@@ -46,6 +46,12 @@ extern NSString *const ATLImagePreviewHeightKey;
 extern NSString *const ATLLocationLatitudeKey;
 extern NSString *const ATLLocationLongitudeKey;
 
+extern NSString *const ATLConversationCellReuseIdentifier;
+extern NSString *const ATLImageMIMETypePlaceholderText;
+extern NSString *const ATLVideoMIMETypePlaceholderText;
+extern NSString *const ATLLocationMIMETypePlaceholderText;
+extern NSString *const ATLGIFMIMETypePlaceholderText;
+
 //---------------------------------
 // @name Internationalization Macro
 //---------------------------------
@@ -83,11 +89,25 @@ CGRect ATLImageRectConstrainedToSize(CGSize imageSize, CGSize maxSize);
 
 CGFloat ATLDegreeToRadians(CGFloat degrees);
 
+//----------------------
+// @name Query Utilities
+//----------------------
+
+LYRQuery *ATLConversationListDefaultQueryForAuthenticatedUserID(NSString *userID);
+
+LYRQuery *ATLMessageListDefaultQueryForConversation(LYRConversation *conversation);
+
 //------------------------
 // @name Message Utilities
 //------------------------
 
 LYRMessage *ATLMessageForParts(LYRClient *layerClient, NSArray *messageParts, NSString *pushText, NSString *pushSound);
+
+NSString *ATLLastMessageTextForMessage(LYRMessage *message);
+
+NSString *ATLPushTextForMessage(NSString *senderName, NSString *MIMEType);
+
+LYRMessage *ATLMessageForMessageParameters(LYRClient *client, NSArray *messageParts, NSString *pushText);
 
 //-----------------------------
 // @name Message Part Utilities

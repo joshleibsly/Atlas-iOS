@@ -37,3 +37,7 @@ UIFont *ATLLightFont(CGFloat size);
 UIFont *ATLMediumFont(CGFloat size);
 
 UIFont *ATLBoldFont(CGFloat size);
+
+extern NSString *ATLLayerClientKey;
+
+extern NSString *ATLLayerConversationKey;
