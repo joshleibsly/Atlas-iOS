@@ -49,7 +49,7 @@
         _queryController.updatableProperties = [NSSet setWithObjects:@"parts.transferStatus", @"recipientStatusByUserID", @"sentAt", nil];
         
         self.paginationIncrement = 30;
-        _dateDisplayTimeInterval = 60*60
+        _dateDisplayTimeInterval = 60*60;
         _numberOfSectionsBeforeFirstMessage = 1;
         
         BOOL success = [_queryController execute:&error];
