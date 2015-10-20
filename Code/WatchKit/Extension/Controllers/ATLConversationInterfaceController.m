@@ -141,7 +141,7 @@
             NSString *senderName = [[self participantForIdentifier:self.layerClient.authenticatedUserID] fullName];
             pushText = ATLPushTextForMessage(senderName, attachment.mediaMIMEType);
         }
-        LYRMessage *message = ATLMessageForMessageParameters(self.layerClient, messageParts, pushText);
+        LYRMessage *message = ATLMessageForParts(self.layerClient, messageParts, pushText);
         if (message) {
             [messages addObject:message];
         }

@@ -231,18 +231,6 @@ NSString *ATLPushTextForMessage(NSString *senderName, NSString *MIMEType)
     return completePushText;
 }
 
-LYRMessage *ATLMessageForMessageParameters(LYRClient *client, NSArray *messageParts, NSString *pushText)
-{
-    NSDictionary *pushOptions = @{LYRMessageOptionsPushNotificationAlertKey : pushText,
-                                  LYRMessageOptionsPushNotificationSoundNameKey : ATLPushNotificationSoundName};
-    NSError *error;
-    LYRMessage *message = [client newMessageWithParts:messageParts options:pushOptions error:&error];
-    if (error) {
-        return nil;
-    }
-    return message;
-}
-
 #pragma mark - Message Parts Utilities
 
 NSArray *ATLMessagePartsWithMediaAttachment(ATLMediaAttachment *mediaAttachment)
