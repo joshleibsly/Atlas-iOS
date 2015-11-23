@@ -213,7 +213,7 @@ NSInteger const kATLSharedCellTag = 1000;
         dispatch_async(dispatch_get_main_queue(), ^{
             // Fall-back to programatically requesting for a content download of
             // single message part messages (Android compatibillity).
-            if ([[weakSelf.message valueForKeyPath:@"parts.MIMEType"] containsObject:@[ATLMIMETypeImageJPEG]] || [[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImagePNG]) {
+            if ([[weakSelf.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImageJPEG] || [[self.message valueForKeyPath:@"parts.MIMEType"] containsObject:ATLMIMETypeImagePNG]) {
                 if (fullResImagePart && (fullResImagePart.transferStatus == LYRContentTransferReadyForDownload)) {
                     NSError *error;
                     LYRProgress *progress = [fullResImagePart downloadContent:&error];
