@@ -32,7 +32,8 @@
         [messagePart.MIMEType isEqualToString:@"gobutler/creditCardConfirmation"] ||
         [messagePart.MIMEType isEqualToString:@"gobutler/uberRequest"] ||
         [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestDetail"] ||
-        [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestComplete"]) {
+        [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestComplete"] ||
+        [messagePart.MIMEType isEqualToString:@"gobutler/flowProducts"]) {
         [self configureBubbleViewForTextContent];
     } else if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG]) {
         [self configureBubbleViewForImageContent];
@@ -64,6 +65,8 @@
                [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestDetail"] ||
                [messagePart.MIMEType isEqualToString:@"gobutler/uberRequestComplete"]) {
         [self.label setText:NSLocalizedString(@"Please see the iPhone app for your Uber request details.", nil)];
+    } else if ([messagePart.MIMEType isEqualToString:@"gobutler/flowProducts"]) {
+        [self.label setText:NSLocalizedString(@"Please see the iPhone app for your gift suggestions.", nil)];
     } else {
         [self.label setText:[[NSString alloc] initWithData:messagePart.data encoding:NSUTF8StringEncoding]];
     }

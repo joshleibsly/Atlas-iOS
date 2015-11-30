@@ -89,4 +89,6 @@
  */
 - (CGPoint)bottomOffsetForContentSize:(CGSize)contentSize;
 
+- (void)messageInputToolbarDidChangeHeight:(NSNotification *)notification;
+
 @end
