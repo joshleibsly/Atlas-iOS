@@ -422,7 +422,7 @@ CGFloat const ATLSecondsInDay = 86400.0;
     self.bubbleView.layer.cornerRadius = bubbleViewCornerRadius;
 }
 
-+- (void)setExpandedForTimestamp:(BOOL)expandedForTimestamp {
+- (void)setExpandedForTimestamp:(BOOL)expandedForTimestamp {
     _expandedForTimestamp = expandedForTimestamp;
     self.timestampHeightConstraint.constant = expandedForTimestamp ? ATLTimestampHeight : 0.0;
     self.bubbleViewHeightConstraint.constant = expandedForTimestamp ? -ATLTimestampHeight : 0.0;
