@@ -32,7 +32,7 @@
 #import "ATLLocationManager.h"
 @import AVFoundation;
 
-@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, CLLocationManagerDelegate>
+@interface ATLConversationViewController () <UICollectionViewDataSource, UICollectionViewDelegate, ATLMessageInputToolbarDelegate, CLLocationManagerDelegate, ATLMessageCollectionViewCellDelegate>
 
 @property (nonatomic) ATLConversationDataSource *conversationDataSource;
 @property (nonatomic, readwrite) LYRQueryController *queryController;
@@ -317,13 +317,38 @@ static NSInteger const ATLMoreMessagesSection = 0;
     if ([self.delegate respondsToSelector:@selector(conversationViewController:configureCell:forMessage:)]) {
         [self.delegate conversationViewController:self configureCell:cell forMessage:message];
     }
+    
+    if ([cell isKindOfClass:[ATLMessageCollectionViewCell class]]) {
+        ATLMessageCollectionViewCell *messageCell = (ATLMessageCollectionViewCell *)cell;
+        messageCell.expansionReuseDelegate = self;
+    }
+    
     return cell;
+}
+
+- (void)messageCellDidResetExpandedState {
+    [self.collectionView performBatchUpdates:nil completion:nil];
 }
 
 #pragma mark - UICollectionViewDelegate
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
 {
+    ATLMessageCollectionViewCell *cell = (ATLMessageCollectionViewCell *)[self.collectionView cellForItemAtIndexPath:indexPath];
+    if ([cell isKindOfClass:[ATLMessageCollectionViewCell class]]) {
+        cell.expandedForTimestamp = !cell.expandedForTimestamp;
+        LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
+        for (LYRMessagePart *messagePart in message.parts) {
+            if ([messagePart.MIMEType isEqualToString:ATLMIMETypeImageJPEG] ||
+                [messagePart.MIMEType isEqualToString:ATLMIMETypeImagePNG]  ||
+                [messagePart.MIMEType isEqualToString:ATLMIMETypeImageGIF]) {
+                cell.expandedForTimestamp = NO;
+            }
+        }
+        
+        [self.collectionView performBatchUpdates:nil completion:nil];
+    }
+    
     [self notifyDelegateOfMessageSelection:[self.conversationDataSource messageAtCollectionViewIndexPath:indexPath]];
 }
 
@@ -458,10 +483,16 @@ static NSInteger const ATLMoreMessagesSection = 0;
 - (CGFloat)defaultCellHeightForItemAtIndexPath:(NSIndexPath *)indexPath
 {
     LYRMessage *message = [self.conversationDataSource messageAtCollectionViewIndexPath:indexPath];
+    ATLMessageCollectionViewCell *cell = (ATLMessageCollectionViewCell *)[self.collectionView cellForItemAtIndexPath:indexPath];
+    BOOL expanded = NO;
+    if ([cell isKindOfClass:[ATLMessageCollectionViewCell class]]) {
+        expanded = cell.expandedForTimestamp;
+    }
+    
     if ([message.sender.userID isEqualToString:self.layerClient.authenticatedUserID]) {
-        return [ATLOutgoingMessageCollectionViewCell cellHeightForMessage:message inView:self.view];
+        return [ATLOutgoingMessageCollectionViewCell cellHeightForMessage:message inView:self.view expandedForTimestamp:expanded];
     } else {
-        return [ATLIncomingMessageCollectionViewCell cellHeightForMessage:message inView:self.view];
+        return [ATLIncomingMessageCollectionViewCell cellHeightForMessage:message inView:self.view expandedForTimestamp:expanded];
     }
 }
 

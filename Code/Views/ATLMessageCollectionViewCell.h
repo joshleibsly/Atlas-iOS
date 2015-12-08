@@ -32,6 +32,12 @@ extern NSString *const ATLVideoAccessibilityLabel;
 extern CGFloat const ATLAvatarImageLeadPadding;
 extern CGFloat const ATLAvatarImageTailPadding;
 
+@protocol ATLMessageCollectionViewCellDelegate <NSObject>
+
+- (void)messageCellDidResetExpandedState;
+
+@end
+
 /**
  @abstract The `ATLMessageCollectionViewCell` class provides a lightweight, customizable collection
  view cell for presenting Layer message objects. The class is subclassed by `ATLIncomingMessageCollectionViewCell`
@@ -86,12 +92,16 @@ extern CGFloat const ATLAvatarImageTailPadding;
  */
 @property (nonatomic) LYRMessage *message;
 
+@property (nonatomic) BOOL expandedForTimestamp;
+
+@property (nonatomic, weak) id <ATLMessageCollectionViewCellDelegate> expansionReuseDelegate;
+
 /**
  @abstract Performs calculations to determine a cell's height.
  @param message The `LYRMessage` object that will be displayed in the cell.
  @param view The view where the cell will be displayed.
  @return The height for the cell.
  */
-+ (CGFloat)cellHeightForMessage:(LYRMessage *)message inView:(UIView *)view;
++ (CGFloat)cellHeightForMessage:(LYRMessage *)message inView:(UIView *)view expandedForTimestamp:(BOOL)expanded;
 
 @end

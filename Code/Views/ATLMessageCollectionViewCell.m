@@ -36,6 +36,10 @@ CGFloat const ATLAvatarImageLeadPadding = 12.0f;
 CGFloat const ATLAvatarImageTailPadding = 7.0f;
 NSInteger const kATLSharedCellTag = 1000;
 
+CGFloat const ATLTimestampHeight = 30.0;
+
+CGFloat const ATLSecondsInDay = 86400.0;
+
 @interface ATLMessageCollectionViewCell () <LYRProgressDelegate>
 
 @property (nonatomic) BOOL messageSentState;
@@ -43,7 +47,14 @@ NSInteger const kATLSharedCellTag = 1000;
 @property (nonatomic) NSUInteger lastProgressFractionCompleted;
 @property (nonatomic) NSLayoutConstraint *bubbleWithAvatarLeadConstraint;
 @property (nonatomic) NSLayoutConstraint *bubbleWithoutAvatarLeadConstraint;
+
+@property (nonatomic) NSLayoutConstraint *timestampHeightConstraint;
+@property (nonatomic) NSLayoutConstraint *bubbleViewHeightConstraint;
+
 @property (nonatomic) dispatch_queue_t imageProcessingConcurrentQueue;
+
+@property (nonatomic) NSDateFormatter *dateFormatter;
+@property (nonatomic) UILabel *timestampLabel;
 
 @end
 
@@ -111,6 +122,12 @@ NSInteger const kATLSharedCellTag = 1000;
     _avatarImageView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:_avatarImageView];
     
+    _timestampLabel = [[UILabel alloc] init];
+    _timestampLabel.textColor = [UIColor colorWithRed:191.0 / 255.0 green:191.0 / 255.0 blue:191.0 / 255.0 alpha:1.0];
+    _timestampLabel.font = [UIFont systemFontOfSize:12.0];
+    _timestampLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.contentView addSubview:_timestampLabel];
+    
     [self.bubbleView updateProgressIndicatorWithProgress:0.0 visible:NO animated:NO];
     
     [self configureLayoutConstraints];
@@ -121,6 +138,10 @@ NSInteger const kATLSharedCellTag = 1000;
     [super prepareForReuse];
     // Remove self from any previously assigned LYRProgress instance.
     self.progress.delegate = nil;
+    if (self.expandedForTimestamp) {
+        [self.expansionReuseDelegate messageCellDidResetExpandedState];
+        self.expandedForTimestamp = NO;
+    }
     self.lastProgressFractionCompleted = 0;
     [self.avatarImageView resetView];
     [self.bubbleView prepareForReuse];
@@ -401,6 +422,17 @@ NSInteger const kATLSharedCellTag = 1000;
     self.bubbleView.layer.cornerRadius = bubbleViewCornerRadius;
 }
 
++- (void)setExpandedForTimestamp:(BOOL)expandedForTimestamp {
+    _expandedForTimestamp = expandedForTimestamp;
+    self.timestampHeightConstraint.constant = expandedForTimestamp ? ATLTimestampHeight : 0.0;
+    self.bubbleViewHeightConstraint.constant = expandedForTimestamp ? -ATLTimestampHeight : 0.0;
+    
+    if (expandedForTimestamp) {
+        NSDate *receivedAt = self.message.receivedAt;
+        self.timestampLabel.text = [self formattedStringFromDate:receivedAt];
+    }
+}
+
 #pragma mark - LYRProgress Delegate Implementation
 
 - (void)progressDidChange:(LYRProgress *)progress
@@ -445,10 +477,64 @@ NSInteger const kATLSharedCellTag = 1000;
 - (void)configureLayoutConstraints
 {
     CGFloat maxBubbleWidth = ATLMaxCellWidth() + ATLMessageBubbleLabelHorizontalPadding * 2;
-    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.bubbleView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationLessThanOrEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:maxBubbleWidth]];
-    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.bubbleView attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeHeight multiplier:1.0 constant:0]];
-    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.bubbleView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeTop multiplier:1.0 constant:0]];
-    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.avatarImageView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.contentView attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
+    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.bubbleView
+                                                                 attribute:NSLayoutAttributeWidth
+                                                                 relatedBy:NSLayoutRelationLessThanOrEqual
+                                                                    toItem:nil
+                                                                 attribute:NSLayoutAttributeNotAnAttribute
+                                                                multiplier:1.0
+                                                                  constant:maxBubbleWidth]];
+    
+    self.bubbleViewHeightConstraint = [NSLayoutConstraint constraintWithItem:self.bubbleView
+                                                                   attribute:NSLayoutAttributeHeight
+                                                                   relatedBy:NSLayoutRelationEqual
+                                                                      toItem:self.contentView
+                                                                   attribute:NSLayoutAttributeHeight
+                                                                  multiplier:1.0
+                                                                    constant:(self.expandedForTimestamp) ? -ATLTimestampHeight : 0.0];
+    [self.contentView addConstraint:self.bubbleViewHeightConstraint];
+    
+    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.bubbleView
+                                                                 attribute:NSLayoutAttributeTop
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:self.timestampLabel
+                                                                 attribute:NSLayoutAttributeBottom
+                                                                multiplier:1.0
+                                                                  constant:0]];
+    
+    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.timestampLabel
+                                                                 attribute:NSLayoutAttributeTop
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:self.contentView
+                                                                 attribute:NSLayoutAttributeTop
+                                                                multiplier:1.0
+                                                                  constant:0]];
+    
+    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.timestampLabel
+                                                                 attribute:NSLayoutAttributeCenterX
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:self.contentView
+                                                                 attribute:NSLayoutAttributeCenterX
+                                                                multiplier:1.0
+                                                                  constant:0]];
+    
+        self.timestampHeightConstraint = [NSLayoutConstraint constraintWithItem:self.timestampLabel
+                                                                      attribute:NSLayoutAttributeHeight
+                                                                      relatedBy:NSLayoutRelationEqual
+                                                                         toItem:nil
+                                                                      attribute:NSLayoutAttributeNotAnAttribute
+                                                                     multiplier:1.0
+                                                                       constant:(self.expandedForTimestamp) ? ATLTimestampHeight : 0.0];
+        [self.contentView addConstraint:self.timestampHeightConstraint];
+    
+        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.avatarImageView
+                                                                     attribute:NSLayoutAttributeBottom
+                                                                     relatedBy:NSLayoutRelationEqual
+                                                                        toItem:self.contentView
+                                                                     attribute:NSLayoutAttributeBottom
+                                                                    multiplier:1.0
+                                                                      constant:0]];
+    
 }
 
 - (void)updateWithSender:(id<ATLParticipant>)sender
@@ -478,7 +564,7 @@ NSInteger const kATLSharedCellTag = 1000;
 
 #pragma mark - Cell Height Calculations
 
-+ (CGFloat)cellHeightForMessage:(LYRMessage *)message inView:(UIView *)view
++ (CGFloat)cellHeightForMessage:(LYRMessage *)message inView:(UIView *)view expandedForTimestamp:(BOOL)expanded
 {
     LYRMessagePart *part = message.parts.firstObject;
     
@@ -492,6 +578,11 @@ NSInteger const kATLSharedCellTag = 1000;
     }
     if (height < ATLMessageCellMinimumHeight) height = ATLMessageCellMinimumHeight;
     height = ceil(height);
+    
+    if (expanded) {
+        height += ATLTimestampHeight;
+    }
+    
     return height;
 }
 
@@ -546,6 +637,69 @@ NSInteger const kATLSharedCellTag = 1000;
         }
     }
     return size.height;
+}
+
+
+
+#pragma mark - NSDateFormatter Helpers
+
+- (NSString *)formattedStringFromDate:(NSDate *)date {
+    
+    [self applyFormattingBasedOnDate:date];
+    
+    NSString *dateString = [self.dateFormatter stringFromDate:date];
+    
+    dateString = [[dateString stringByReplacingOccurrencesOfString:@"," withString:@""] uppercaseString];
+    
+    return dateString;
+}
+
+- (void)applyFormattingBasedOnDate:(NSDate *)date {
+    
+    NSDate *yesterday = [NSDate dateWithTimeIntervalSinceNow:-ATLSecondsInDay];
+    NSDate *sevenDaysAgo = [NSDate dateWithTimeIntervalSinceNow:-ATLSecondsInDay * 7];
+    
+    NSCalendar *calendar = [NSCalendar currentCalendar];
+    
+    NSDateComponents *yesterdayComps = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay)
+                                                   fromDate:yesterday];
+    NSDateComponents *sevenDaysAgoComps = [calendar components:(NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay)
+                                                      fromDate:sevenDaysAgo];
+    
+    NSDate *yesterdayIgnoringTime = [calendar dateFromComponents:yesterdayComps];
+    NSDate *sevenDaysAgoIgnoringTime = [calendar dateFromComponents:sevenDaysAgoComps];
+    
+    self.dateFormatter.doesRelativeDateFormatting = YES;
+    self.dateFormatter.dateStyle = NSDateFormatterShortStyle;
+    self.dateFormatter.timeStyle = NSDateFormatterShortStyle;
+    
+    if ([date earlierDate:yesterdayIgnoringTime] == date && [date earlierDate:sevenDaysAgoIgnoringTime] == sevenDaysAgoIgnoringTime) {
+        // date was further away than yesterday, but between 2-7 days ago
+        // if within the past week, it should be like WED 12:00 PM
+        
+        NSString *formatString = [NSDateFormatter dateFormatFromTemplate:@"EEEhmma" options:0 locale:[NSLocale currentLocale]];
+        self.dateFormatter.dateStyle = NSDateFormatterNoStyle;
+        self.dateFormatter.timeStyle = NSDateFormatterNoStyle;
+        self.dateFormatter.doesRelativeDateFormatting = NO;
+        [self.dateFormatter setDateFormat:formatString];
+        
+    } else if ([date earlierDate:sevenDaysAgoIgnoringTime] == date) {
+        // date was further away than seven days ago
+        
+        self.dateFormatter.doesRelativeDateFormatting = NO;
+    }
+    
+}
+
+#pragma mark - Accessors
+
+- (NSDateFormatter *)dateFormatter {
+    if  (!_dateFormatter) {
+        _dateFormatter = [[NSDateFormatter alloc] init];
+        _dateFormatter.locale = [NSLocale currentLocale];
+    }
+    
+    return _dateFormatter;
 }
 
 @end
