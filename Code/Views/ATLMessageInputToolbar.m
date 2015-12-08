@@ -160,12 +160,11 @@ static CGFloat const ATLButtonHeight = 28.0f;
     frame.origin.y -= frame.size.height - CGRectGetHeight(self.frame);
  
     // Only calculate button centerY once to anchor it to bottom of bar.
-    // Divide by two to account for bottom row buttons
     if (!self.buttonCenterY) {
-        self.buttonCenterY = ((CGRectGetHeight(frame) / 2.0) - CGRectGetHeight(leftButtonFrame)) / 2;
+        self.buttonCenterY = (CGRectGetHeight(frame) - CGRectGetHeight(leftButtonFrame)) / 2;
     }
-    leftButtonFrame.origin.y = (frame.size.height / 2.0) - leftButtonFrame.size.height - self.buttonCenterY;
-    rightButtonFrame.origin.y = (frame.size.height / 2.0) - rightButtonFrame.size.height - self.buttonCenterY;
+    leftButtonFrame.origin.y = frame.size.height - leftButtonFrame.size.height - self.buttonCenterY;
+    rightButtonFrame.origin.y = frame.size.height - rightButtonFrame.size.height - self.buttonCenterY;
     
     BOOL heightChanged = CGRectGetHeight(textViewFrame) != CGRectGetHeight(self.textInputView.frame);
 
