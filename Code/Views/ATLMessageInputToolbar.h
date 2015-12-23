@@ -181,4 +181,11 @@ extern NSString *const ATLMessageInputToolbarAccessibilityLabel;
  */
 @property (nonatomic, weak) UIViewController *containerViewController;
 
+/**
+ @abstract Configure right accessory button state depending on content inside of the text input view.
+ @discussion If there is text in the text input view, right accessory button will show send. Otherwise, it will
+ show a camera.
+ */
+- (void)configureRightAccessoryButtonState;
+
 @end

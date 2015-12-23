@@ -49,7 +49,7 @@ static CGFloat const ATLRightButtonHorizontalMargin = 4.0f;
 static CGFloat const ATLVerticalMargin = 7.0f;
 
 // Compose View Button Constants
-static CGFloat const ATLLeftAccessoryButtonWidth = 40.0f;
+static CGFloat const ATLLeftAccessoryButtonWidth = 30.0f;
 static CGFloat const ATLRightAccessoryButtonDefaultWidth = 46.0f;
 static CGFloat const ATLRightAccessoryButtonPadding = 5.3f;
 static CGFloat const ATLButtonHeight = 28.0f;
@@ -95,7 +95,6 @@ static CGFloat const ATLButtonHeight = 28.0f;
         
         self.rightAccessoryButton = [[UIButton alloc] init];
         [self.rightAccessoryButton addTarget:self action:@selector(rightAccessoryButtonTapped) forControlEvents:UIControlEventTouchUpInside];
-        self.rightAccessoryButtonTitle = @"Send";
         [self addSubview:self.rightAccessoryButton];
         [self configureRightAccessoryButtonState];
         
@@ -124,7 +123,7 @@ static CGFloat const ATLButtonHeight = 28.0f;
     CGRect rightButtonFrame = self.rightAccessoryButton.frame;
     CGRect textViewFrame = self.textInputView.frame;
 
-    if (!self.leftAccessoryButton) {
+    if (!self.leftAccessoryButton || !self.leftAccessoryImage) {
         leftButtonFrame.size.width = 0;
     } else {
         leftButtonFrame.size.width = ATLLeftAccessoryButtonWidth;
@@ -138,7 +137,7 @@ static CGFloat const ATLButtonHeight = 28.0f;
     }
     
     leftButtonFrame.size.height = ATLButtonHeight;
-    leftButtonFrame.origin.x = ATLLeftButtonHorizontalMargin;
+    leftButtonFrame.origin.x = ATLLeftButtonHorizontalMargin + 4.0;
 
     if (self.rightAccessoryButtonFont && self.textInputView.text.length) {
         rightButtonFrame.size.width = [ATLLocalizedString(@"atl.messagetoolbar.send.key", self.rightAccessoryButtonTitle, nil) boundingRectWithSize:CGSizeMake(MAXFLOAT, MAXFLOAT) options:0 attributes:@{NSFontAttributeName: self.rightAccessoryButtonFont} context:nil].size.width + ATLRightAccessoryButtonPadding;
@@ -148,7 +147,7 @@ static CGFloat const ATLButtonHeight = 28.0f;
     rightButtonFrame.size.height = ATLButtonHeight;
     rightButtonFrame.origin.x = CGRectGetWidth(frame) - CGRectGetWidth(rightButtonFrame) - ATLRightButtonHorizontalMargin;
 
-    textViewFrame.origin.x = CGRectGetMaxX(leftButtonFrame) + ATLLeftButtonHorizontalMargin;
+    textViewFrame.origin.x = CGRectGetMaxX(leftButtonFrame) + ATLLeftButtonHorizontalMargin - 5.0;
     textViewFrame.origin.y = self.verticalMargin;
     textViewFrame.size.width = CGRectGetMinX(rightButtonFrame) - CGRectGetMinX(textViewFrame) - ATLRightButtonHorizontalMargin;
 
@@ -282,7 +281,6 @@ static CGFloat const ATLButtonHeight = 28.0f;
         [self.inputToolBarDelegate messageInputToolbarDidEndTyping:self];
     }
     [self.inputToolBarDelegate messageInputToolbar:self didTapRightAccessoryButton:self.rightAccessoryButton];
-    self.textInputView.text = @"";
     [self setNeedsLayout];
     self.mediaAttachments = nil;
     self.attributedStringForMessageParts = nil;
@@ -388,12 +386,11 @@ static CGFloat const ATLButtonHeight = 28.0f;
 - (void)configureRightAccessoryButtonForText
 {
     self.rightAccessoryButton.accessibilityLabel = ATLMessageInputToolbarSendButton;
-    [self.rightAccessoryButton setImage:nil forState:UIControlStateNormal];
+    [self.rightAccessoryButton setImage:[UIImage imageNamed:@"unselected-send"] forState:UIControlStateNormal];
+    [self.rightAccessoryButton setImage:[UIImage imageNamed:@"selected-send"] forState:UIControlStateHighlighted];
+
     self.rightAccessoryButton.contentEdgeInsets = UIEdgeInsetsMake(2, 0, 0, 0);
-    self.rightAccessoryButton.titleLabel.font = self.rightAccessoryButtonFont;
-    [self.rightAccessoryButton setTitle:ATLLocalizedString(@"atl.messagetoolbar.send.key", self.rightAccessoryButtonTitle, nil) forState:UIControlStateNormal];
-    [self.rightAccessoryButton setTitleColor:self.rightAccessoryButtonActiveColor forState:UIControlStateNormal];
-    [self.rightAccessoryButton setTitleColor:self.rightAccessoryButtonDisabledColor forState:UIControlStateDisabled];
+    self.rightAccessoryButtonFont = nil;
     if (!self.displaysRightAccessoryImage && !self.textInputView.text.length) {
         self.rightAccessoryButton.enabled = NO;
     } else {

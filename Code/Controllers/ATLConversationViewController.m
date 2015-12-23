@@ -498,6 +498,28 @@ static NSInteger const ATLMoreMessagesSection = 0;
 
 #pragma mark - ATLMessageInputToolbarDelegate
 
+- (void)showCameraOptionsForMessageToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapRightAccessoryButton:(UIButton *)rightAccessoryButton {
+    
+    if (messageInputToolbar.textInputView.isFirstResponder) {
+        [messageInputToolbar.textInputView resignFirstResponder];
+    }
+    
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Take Photo", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypeCamera];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Last Photo Taken", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self captureLastPhotoTaken];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Photo Library", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [self displayImagePickerWithSourceType:UIImagePickerControllerSourceTypePhotoLibrary];
+    }]];
+    [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"Cancel", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+        [self.messageInputToolbar.textInputView becomeFirstResponder];
+    }]];
+    [self presentViewController:alertController animated:YES completion:nil];
+}
+
 - (void)messageInputToolbar:(ATLMessageInputToolbar *)messageInputToolbar didTapLeftAccessoryButton:(UIButton *)leftAccessoryButton
 {
     if (messageInputToolbar.textInputView.isFirstResponder) {
@@ -529,10 +551,26 @@ static NSInteger const ATLMoreMessagesSection = 0;
     // If there's no content in the input field, send the location.
     NSOrderedSet *messages = [self messagesForMediaAttachments:messageInputToolbar.mediaAttachments];
     if (messages.count == 0 && messageInputToolbar.textInputView.text.length == 0) {
-        [self sendLocationMessage];
+        // [Anar] Instead of sending a useless location share, we are performing the original action
+        // of when the left accessory button is tapped
+        
+        //        [self sendLocationMessage];
+        [self showCameraOptionsForMessageToolbar:messageInputToolbar didTapRightAccessoryButton:rightAccessoryButton];
+
     } else {
         for (LYRMessage *message in messages) {
+            BOOL shouldSendMessage = YES;
+            if ([self.delegate respondsToSelector:@selector(conversationViewController:shouldSendMessage:)]) {
+                shouldSendMessage = [self.delegate conversationViewController:self shouldSendMessage:message];
+            }
+            
+            if (shouldSendMessage) {
+                [self sendMessage:message];
+                self.messageInputToolbar.textInputView.text = nil;
+            }
+            
             [self sendMessage:message];
+
         }
     }
     if (self.addressBarController) [self.addressBarController disable];

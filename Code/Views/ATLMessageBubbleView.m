@@ -69,6 +69,19 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
     return _sharedCache;
 }
 
+- (instancetype)initWithLeftPadding:(CGFloat)leftPadding andRightPadding:(CGFloat)rightPadding
+{
+    self = [super init];
+    if (self) {
+        _messageBubbleLabelHorizontalPaddingLeft = leftPadding;
+        _messageBubbleLabelHorizontalPaddingRight = rightPadding;
+        
+        // TODO: [Anar] try to do make this work another way, if possible
+        [self configureBubbleViewLabelConstraints];
+    }
+    return self;
+}
+
 - (id)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
@@ -101,10 +114,15 @@ typedef NS_ENUM(NSInteger, ATLBubbleViewContentType) {
         _progressView.alpha = 1.0f;
         [self addSubview:_progressView];
         
-        [self configureBubbleViewLabelConstraints];
+        _backgroundImageView = [[UIImageView alloc] init];
+        _backgroundImageView.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_backgroundImageView];
+        [self sendSubviewToBack:_backgroundImageView];
+        
         [self configureBubbleImageViewConstraints];
         [self configureProgressViewConstraints];
         [self configurePlayViewConstraints];
+        [self configureBackgroundImageConstraints];
         
         _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleLabelTap:)];
         _tapGestureRecognizer.delegate = self;
@@ -466,8 +484,8 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
 - (void)configureBubbleViewLabelConstraints
 {
     [self addConstraint:[NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeTop multiplier:1.0 constant:ATLMessageBubbleLabelVerticalPadding]];
-    [self addConstraint:[NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeLeft multiplier:1.0 constant:ATLMessageBubbleLabelHorizontalPadding]];
-    [self addConstraint:[NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeRight relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeRight multiplier:1.0 constant:-ATLMessageBubbleLabelHorizontalPadding]];
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeLeft relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeLeft multiplier:1.0 constant:self.messageBubbleLabelHorizontalPaddingLeft]];
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeRight relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeRight multiplier:1.0 constant:-self.messageBubbleLabelHorizontalPaddingRight]];
     NSLayoutConstraint *bottomConstraint = [NSLayoutConstraint constraintWithItem:_bubbleViewLabel attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationLessThanOrEqual toItem:self attribute:NSLayoutAttributeBottom multiplier:1.0 constant:-ATLMessageBubbleLabelVerticalPadding];
     bottomConstraint.priority = 800;
     [self addConstraint:bottomConstraint];
@@ -496,6 +514,41 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
     [self addConstraint:[NSLayoutConstraint constraintWithItem:_playView attribute:NSLayoutAttributeCenterY relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeCenterY multiplier:1.0 constant:0]];
     [self addConstraint:[NSLayoutConstraint constraintWithItem:_playView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:64.0f]];
     [self addConstraint:[NSLayoutConstraint constraintWithItem:_playView attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:NSLayoutAttributeNotAnAttribute multiplier:1.0 constant:64.0f]];
+}
+
+- (void)configureBackgroundImageConstraints
+{
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_backgroundImageView
+                                                     attribute:NSLayoutAttributeLeft
+                                                     relatedBy:NSLayoutRelationEqual
+                                                        toItem:self
+                                                     attribute:NSLayoutAttributeLeft
+                                                    multiplier:1.0f
+                                                      constant:0.0f]];
+    
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_backgroundImageView
+                                                     attribute:NSLayoutAttributeRight
+                                                     relatedBy:NSLayoutRelationEqual
+                                                        toItem:self
+                                                     attribute:NSLayoutAttributeRight
+                                                    multiplier:1.0f
+                                                      constant:0.0f]];
+    
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_backgroundImageView
+                                                     attribute:NSLayoutAttributeTop
+                                                     relatedBy:NSLayoutRelationEqual
+                                                        toItem:self
+                                                     attribute:NSLayoutAttributeTop
+                                                    multiplier:1.0f
+                                                      constant:0.0f]];
+    
+    [self addConstraint:[NSLayoutConstraint constraintWithItem:_backgroundImageView
+                                                     attribute:NSLayoutAttributeBottom
+                                                     relatedBy:NSLayoutRelationEqual
+                                                        toItem:self
+                                                     attribute:NSLayoutAttributeBottom
+                                                    multiplier:1.0f
+                                                      constant:0.0f]];
 }
 
 @end

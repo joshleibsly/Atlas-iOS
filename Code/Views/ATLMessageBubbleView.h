@@ -46,6 +46,8 @@ extern NSString *const ATLUserDidTapPhoneNumberNotification;
  */
 @interface ATLMessageBubbleView : UIView <UIAppearanceContainer>
 
+- (instancetype)initWithLeftPadding:(CGFloat)leftPadding andRightPadding:(CGFloat)rightPadding;
+
 /**
  @abstract Tells the bubble view to display a given string.
  */
@@ -104,5 +106,13 @@ extern NSString *const ATLUserDidTapPhoneNumberNotification;
  @default `UIMenuItem` copy action.
  */
 @property (nonatomic) NSArray *menuControllerActions;
+
+/**
+ @abstract The view that handles the background.
+ */
+@property (nonatomic) UIImageView *backgroundImageView;
+
+@property (nonatomic) CGFloat messageBubbleLabelHorizontalPaddingLeft;
+@property (nonatomic) CGFloat messageBubbleLabelHorizontalPaddingRight;
 
 @end

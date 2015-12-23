@@ -39,6 +39,8 @@ NSInteger const kATLSharedCellTag = 1000;
 CGFloat const ATLTimestampHeight = 30.0;
 
 CGFloat const ATLSecondsInDay = 86400.0;
+CGFloat const ATLHorizontalPaddingIncoming = 5;
+CGFloat const ATLHorizontalPaddingOutgoing = 5;
 
 @interface ATLMessageCollectionViewCell () <LYRProgressDelegate>
 
@@ -109,13 +111,23 @@ CGFloat const ATLSecondsInDay = 86400.0;
     _messageTextColor = [UIColor blackColor];
     _messageLinkTextColor = [UIColor whiteColor];
     _messageTextCheckingTypes = NSTextCheckingTypeLink;
-    _bubbleViewColor = ATLBlueColor();
-    _bubbleViewCornerRadius = 17.0f;
     
-    _bubbleView = [[ATLMessageBubbleView alloc] init];
+    CGFloat horizontalPaddingLeft = 0.0f;
+    CGFloat horizontalPaddingRight = 0.0f;
+    if ([self isMemberOfClass:[ATLIncomingMessageCollectionViewCell class]]) {
+        horizontalPaddingLeft = ATLMessageBubbleLabelHorizontalPadding + ATLHorizontalPaddingIncoming;
+        horizontalPaddingRight = ATLMessageBubbleLabelHorizontalPadding - ATLHorizontalPaddingIncoming;
+    } else if ([self isMemberOfClass:[ATLOutgoingMessageCollectionViewCell class]]) {
+        horizontalPaddingLeft = ATLMessageBubbleLabelHorizontalPadding - ATLHorizontalPaddingOutgoing;
+        horizontalPaddingRight = ATLMessageBubbleLabelHorizontalPadding + ATLHorizontalPaddingOutgoing;
+    }
+    
+    _bubbleView = [[ATLMessageBubbleView alloc] initWithLeftPadding:horizontalPaddingLeft
+                                                    andRightPadding:horizontalPaddingRight];
+    
+
     _bubbleView.translatesAutoresizingMaskIntoConstraints = NO;
     _bubbleView.layer.cornerRadius = _bubbleViewCornerRadius;
-    _bubbleView.backgroundColor = _bubbleViewColor;
     [self.contentView addSubview:_bubbleView];
     
     _avatarImageView = [[ATLAvatarImageView alloc] init];
@@ -414,6 +426,11 @@ CGFloat const ATLSecondsInDay = 86400.0;
 {
     _bubbleViewColor = bubbleViewColor;
     self.bubbleView.backgroundColor = bubbleViewColor;
+}
+
+- (void)setBubbleViewBackgroundImage:(UIImage *)bubbleViewBackgroundImage {
+    _bubbleViewBackgroundImage = bubbleViewBackgroundImage;
+    self.bubbleView.backgroundImageView.image = bubbleViewBackgroundImage;
 }
 
 - (void)setBubbleViewCornerRadius:(CGFloat)bubbleViewCornerRadius

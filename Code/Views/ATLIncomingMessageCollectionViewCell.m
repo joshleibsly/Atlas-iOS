@@ -34,8 +34,8 @@ NSString *const ATLIncomingMessageCellIdentifier = @"ATLIncomingMessageCellIdent
 + (void)initialize
 {
     ATLIncomingMessageCollectionViewCell *proxy = [self appearance];
-    proxy.bubbleViewColor = ATLLightGrayColor();
     proxy.messageLinkTextColor = ATLBlueColor();
+    proxy.bubbleViewBackgroundImage = [UIImage imageNamed:@"message-bubble-incoming"];
 }
 
 - (id)initWithFrame:(CGRect)frame
