@@ -568,9 +568,6 @@ static NSInteger const ATLMoreMessagesSection = 0;
                 [self sendMessage:message];
                 self.messageInputToolbar.textInputView.text = nil;
             }
-            
-            [self sendMessage:message];
-
         }
     }
     if (self.addressBarController) [self.addressBarController disable];
