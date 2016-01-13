@@ -104,7 +104,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-
+    
     // Workaround for a modal dismissal causing the message toolbar to remain offscreen on iOS 8.
     if (self.presentedViewController) {
         [self.view becomeFirstResponder];
@@ -127,7 +127,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
-
+    
     // To get the toolbar to slide onscreen with the view controller's content, we have to make the view the
     // first responder here. Even so, it will not animate on iOS 8 the first time.
     if (!self.presentedViewController && self.navigationController && !self.view.inputAccessoryView.superview) {
@@ -161,7 +161,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
-#pragma mark - Public Setters 
+#pragma mark - Public Setters
 
 - (void)setCollectionView:(UICollectionView *)collectionView
 {
@@ -195,7 +195,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [self.collectionView setContentOffset:[self bottomOffsetForContentSize:contentSize] animated:animated];
 }
 
-#pragma mark - Content Inset Management  
+#pragma mark - Content Inset Management
 
 - (void)updateTopCollectionViewInset
 {
@@ -219,7 +219,15 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     CGFloat keyboardHeight = MAX(self.keyboardHeight, CGRectGetHeight(self.messageInputToolbar.frame));
     
     insets.bottom = keyboardHeight + self.typingIndicatorInset;
-    self.collectionView.scrollIndicatorInsets = insets;
+    UIEdgeInsets scrollIndicatorInsets = insets;
+    
+    if (self.messageInputToolbar.hidden) {
+        scrollIndicatorInsets.bottom = keyboardHeight - CGRectGetHeight(self.messageInputToolbar.frame);
+    } else {
+        scrollIndicatorInsets.bottom = insets.bottom;
+    }
+    
+    self.collectionView.scrollIndicatorInsets = scrollIndicatorInsets;
     self.collectionView.contentInset = insets;
     self.typingIndicatorViewBottomConstraint.constant = -keyboardHeight;
 }
@@ -245,7 +253,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
 - (void)messageInputToolbarDidChangeHeight:(NSNotification *)notification
 {
     if (!self.messageInputToolbar.superview) {
-       return;
+        return;
     }
     
     CGRect toolbarFrame = [self.view convertRect:self.messageInputToolbar.frame fromView:self.messageInputToolbar.superview];
@@ -254,7 +262,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     
     BOOL messagebarDidGrow = keyboardOnscreenHeight > self.keyboardHeight;
     self.keyboardHeight = keyboardOnscreenHeight;
-     self.typingIndicatorViewBottomConstraint.constant = -self.collectionView.scrollIndicatorInsets.bottom;
+    self.typingIndicatorViewBottomConstraint.constant = -self.collectionView.scrollIndicatorInsets.bottom;
     [self updateBottomCollectionViewInset];
     
     if ([self shouldScrollToBottom] && messagebarDidGrow) {
@@ -267,7 +275,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [self scrollToBottomAnimated:YES];
 }
 
-#pragma mark - Keyboard Management 
+#pragma mark - Keyboard Management
 
 - (void)configureWithKeyboardNotification:(NSNotification *)notification
 {
@@ -357,7 +365,7 @@ static CGFloat const ATLMaxScrollDistanceFromBottom = 150;
     [self.view addConstraint:[NSLayoutConstraint constraintWithItem:self.addressBarController.view attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:self.view attribute:NSLayoutAttributeBottom multiplier:1.0 constant:0]];
 }
 
-#pragma mark - Notification Registration 
+#pragma mark - Notification Registration
 
 - (void)atl_baseRegisterForNotifications
 {

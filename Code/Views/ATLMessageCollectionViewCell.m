@@ -125,7 +125,7 @@ CGFloat const ATLHorizontalPaddingOutgoing = 5;
     _bubbleView = [[ATLMessageBubbleView alloc] initWithLeftPadding:horizontalPaddingLeft
                                                     andRightPadding:horizontalPaddingRight];
     
-
+    
     _bubbleView.translatesAutoresizingMaskIntoConstraints = NO;
     _bubbleView.layer.cornerRadius = _bubbleViewCornerRadius;
     [self.contentView addSubview:_bubbleView];
@@ -535,22 +535,22 @@ CGFloat const ATLHorizontalPaddingOutgoing = 5;
                                                                 multiplier:1.0
                                                                   constant:0]];
     
-        self.timestampHeightConstraint = [NSLayoutConstraint constraintWithItem:self.timestampLabel
-                                                                      attribute:NSLayoutAttributeHeight
-                                                                      relatedBy:NSLayoutRelationEqual
-                                                                         toItem:nil
-                                                                      attribute:NSLayoutAttributeNotAnAttribute
-                                                                     multiplier:1.0
-                                                                       constant:(self.expandedForTimestamp) ? ATLTimestampHeight : 0.0];
-        [self.contentView addConstraint:self.timestampHeightConstraint];
+    self.timestampHeightConstraint = [NSLayoutConstraint constraintWithItem:self.timestampLabel
+                                                                  attribute:NSLayoutAttributeHeight
+                                                                  relatedBy:NSLayoutRelationEqual
+                                                                     toItem:nil
+                                                                  attribute:NSLayoutAttributeNotAnAttribute
+                                                                 multiplier:1.0
+                                                                   constant:(self.expandedForTimestamp) ? ATLTimestampHeight : 0.0];
+    [self.contentView addConstraint:self.timestampHeightConstraint];
     
-        [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.avatarImageView
-                                                                     attribute:NSLayoutAttributeBottom
-                                                                     relatedBy:NSLayoutRelationEqual
-                                                                        toItem:self.contentView
-                                                                     attribute:NSLayoutAttributeBottom
-                                                                    multiplier:1.0
-                                                                      constant:0]];
+    [self.contentView addConstraint:[NSLayoutConstraint constraintWithItem:self.avatarImageView
+                                                                 attribute:NSLayoutAttributeBottom
+                                                                 relatedBy:NSLayoutRelationEqual
+                                                                    toItem:self.contentView
+                                                                 attribute:NSLayoutAttributeBottom
+                                                                multiplier:1.0
+                                                                  constant:0]];
     
 }
 

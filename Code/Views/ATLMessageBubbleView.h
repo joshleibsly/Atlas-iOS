@@ -39,7 +39,7 @@ extern NSString *const ATLUserDidTapLinkNotification;
 extern NSString *const ATLUserDidTapPhoneNumberNotification;
 
 /**
- @abstract The `ATLMessageBubbleView` class provides a lightweight, customizable view that 
+ @abstract The `ATLMessageBubbleView` class provides a lightweight, customizable view that
  handles displaying the actual message content within a collection view cell.
  @discussion The view provides support for multiple content types including text,
  images, and location data.

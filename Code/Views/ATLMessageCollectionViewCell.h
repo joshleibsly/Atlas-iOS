@@ -71,10 +71,10 @@ extern CGFloat const ATLAvatarImageTailPadding;
 @property (nonatomic) UIImage *bubbleViewBackgroundImage;
 
 /**
-  @abstract The NSTextCheckingTypes that will be passed to the bubbleView
-  @discussion Currently supports NSTextCheckingTypeLink and NSTextCheckingTypePhoneNumber
-  @default NSTextCheckingTypeLink
-*/
+ @abstract The NSTextCheckingTypes that will be passed to the bubbleView
+ @discussion Currently supports NSTextCheckingTypeLink and NSTextCheckingTypePhoneNumber
+ @default NSTextCheckingTypeLink
+ */
 @property (nonatomic) NSTextCheckingType messageTextCheckingTypes UI_APPEARANCE_SELECTOR;
 
 /**
